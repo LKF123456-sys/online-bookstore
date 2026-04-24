@@ -1,0 +1,22 @@
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+target/
+
+### Eclipse ###
+.classpath
+.project
+.settings
+bin/
+
+### VS Code ###
+.vscode/
+
+### Mac ###
+.DS_Store
+
+### 日志 ###
+*.log
