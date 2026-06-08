@@ -299,8 +299,8 @@
         </div>
 
         <div class="btn-row">
-            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=success&paymentMethod=支付宝" class="btn-pay-success">模拟支付成功</a>
-            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=fail&paymentMethod=支付宝" class="btn-pay-fail">支付失败</a>
+            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=success&paymentMethod=支付宝&userId=${param.userId}" class="btn-pay-success">模拟支付成功</a>
+            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=fail&paymentMethod=支付宝&userId=${param.userId}" class="btn-pay-fail">支付失败</a>
         </div>
     </div>
     <a href="${pageContext.request.contextPath}/payment?orderId=${orderId}" class="back-link">← 返回选择支付方式</a>
@@ -312,7 +312,7 @@
         totalSeconds--;
         if (totalSeconds <= 0) {
             clearInterval(countdownInterval);
-            window.location.href = '${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=timeout&paymentMethod=支付宝';
+            window.location.href = '${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=timeout&paymentMethod=支付宝&userId=${param.userId}';
             return;
         }
         var minutes = Math.floor(totalSeconds / 60);

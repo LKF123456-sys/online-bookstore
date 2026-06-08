@@ -104,6 +104,7 @@
             💡 您可以选择对整个订单进行评价，或者选择特定商品进行评价
         </div>
 
+        <c:if test="${not empty items && items.size() > 0}">
         <div class="product-preview">
             <img src="${pageContext.request.contextPath}/img/books/${items[0].productId}.jpg" alt="<c:out value="${items[0].productName}"/>" class="product-img"
                  onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2278%22><rect fill=%22%23e5e7eb%22 width=%2260%22 height=%2278%22 rx=%228%22/><text fill=%22%239ca3af%22 font-size=%2220%22 text-anchor=%22middle%22 x=%2230%22 y=%2245%22>📚</text></svg>'">
@@ -123,6 +124,7 @@
                     </c:forEach>
                 </select>
             </div>
+        </c:if>
         </c:if>
 
         <form action="${pageContext.request.contextPath}/review/submit" method="post" enctype="multipart/form-data" id="reviewForm">

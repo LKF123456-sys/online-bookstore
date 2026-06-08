@@ -324,8 +324,8 @@
         </div>
 
         <div class="btn-row">
-            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=success&paymentMethod=银行卡支付" class="btn-pay-success">确认支付</a>
-            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=fail&paymentMethod=银行卡支付" class="btn-pay-fail">取消支付</a>
+            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=success&paymentMethod=银行卡支付&userId=${param.userId}" class="btn-pay-success">确认支付</a>
+            <a href="${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=fail&paymentMethod=银行卡支付&userId=${param.userId}" class="btn-pay-fail">取消支付</a>
         </div>
 
         <div class="secure-tip">
@@ -382,7 +382,7 @@
         totalSeconds--;
         if (totalSeconds <= 0) {
             clearInterval(countdownInterval);
-            window.location.href = '${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=timeout&paymentMethod=银行卡支付';
+            window.location.href = '${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=timeout&paymentMethod=银行卡支付&userId=${param.userId}';
             return;
         }
         var minutes = Math.floor(totalSeconds / 60);

@@ -334,7 +334,7 @@
         </div>
 
         <div class="method-list">
-            <a href="${pageContext.request.contextPath}/payment/wechat?orderId=${orderId}" class="method-card wechat glow-hover">
+            <a href="${pageContext.request.contextPath}/payment/wechat?orderId=${orderId}&userId=${userId}" class="method-card wechat glow-hover">
                 <span class="method-icon">💚</span>
                 <div class="method-info">
                     <h3>微信支付</h3>
@@ -343,7 +343,7 @@
                 <span class="method-badge">推荐</span>
                 <span class="method-arrow">→</span>
             </a>
-            <a href="${pageContext.request.contextPath}/payment/alipay?orderId=${orderId}" class="method-card alipay glow-hover">
+            <a href="${pageContext.request.contextPath}/payment/alipay?orderId=${orderId}&userId=${userId}" class="method-card alipay glow-hover">
                 <span class="method-icon">💙</span>
                 <div class="method-info">
                     <h3>支付宝</h3>
@@ -351,7 +351,7 @@
                 </div>
                 <span class="method-arrow">→</span>
             </a>
-            <a href="${pageContext.request.contextPath}/payment/card?orderId=${orderId}" class="method-card bankcard glow-hover">
+            <a href="${pageContext.request.contextPath}/payment/card?orderId=${orderId}&userId=${userId}" class="method-card bankcard glow-hover">
                 <span class="method-icon">💳</span>
                 <div class="method-info">
                     <h3>银行卡支付</h3>
@@ -375,7 +375,7 @@
         if (totalSeconds <= 0) {
             clearInterval(timerInterval);
             alert('支付超时，订单已自动取消。');
-            window.location.href = '${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=timeout&paymentMethod=通用';
+            window.location.href = '${pageContext.request.contextPath}/paymentCallback?orderId=${orderId}&status=timeout&paymentMethod=通用&userId=${userId}';
             return;
         }
         var minutes = Math.floor(totalSeconds / 60);

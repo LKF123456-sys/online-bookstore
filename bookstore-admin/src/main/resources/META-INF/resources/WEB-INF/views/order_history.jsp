@@ -418,6 +418,16 @@
             </span>
         </a>
     </div>
+    <c:if test="${not empty success}">
+        <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #065f46; padding: 14px 20px; border-radius: 12px; margin-bottom: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(16,185,129,0.2);">
+            <span style="font-size: 20px;">✅</span> ${success}
+        </div>
+    </c:if>
+    <c:if test="${not empty error}">
+        <div style="background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b; padding: 14px 20px; border-radius: 12px; margin-bottom: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(239,68,68,0.2);">
+            <span style="font-size: 20px;">❌</span> ${error}
+        </div>
+    </c:if>
     <div class="page-hero">
         <div class="page-hero-content">
             <div>
@@ -594,9 +604,14 @@
             url: '${pageContext.request.contextPath}/order/confirmReceipt',
             type: 'POST',
             data: { orderId: orderId },
+            dataType: 'json',
             success: function(data) {
-                alert('已确认收货！');
-                location.reload();
+                if (data.success) {
+                    alert('已确认收货！');
+                    location.reload();
+                } else {
+                    alert(data.message || '操作失败，请重试');
+                }
             },
             error: function() {
                 alert('操作失败，请重试');

@@ -4,6 +4,7 @@
      说明：支付过程中出现错误时跳转到此页面。
      ============================================================ --%>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <!DOCTYPE html>
 <html>
 <head>
@@ -165,6 +166,11 @@
         <h2>支付失败</h2>
         <p class="fail-msg">很抱歉，您的支付未能完成</p>
         <span class="fail-reason">订单已取消</span>
+        <c:if test="${not empty error}">
+            <div style="background:#fee2e2;color:#991b1b;padding:10px 16px;border-radius:8px;margin:12px 0;font-size:14px;">
+                ${error}
+            </div>
+        </c:if>
 
         <div class="fail-actions">
             <a href="${pageContext.request.contextPath}/payment?orderId=${orderId}" class="btn-retry">🔄 重新支付</a>

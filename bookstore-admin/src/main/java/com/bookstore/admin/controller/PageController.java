@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import com.bookstore.admin.service.AdminLogService;
@@ -708,9 +709,88 @@ public class PageController {
         return "redirect:/order?msg=error"; // 订单创建失败
     }
 
-    /** 订单详情页面 */
+    /**
+     * 订单详情页面
+     * 加载指定订单的完整信息（订单基本信息 + 商品明细 + 评价状态）
+     *
+     * @param orderId 订单ID（query参数）
+     * @param model Model对象
+     * @param session HTTP会话
+     * @return 订单详情页视图
+     */
     @GetMapping("/order/detail") // 处理GET /order/detail请求
-    public String orderDetail() {
+    public String orderDetail(@RequestParam(required = false) String orderId, Model model, HttpSession session) {
+        if (orderId == null || orderId.isEmpty()) { // 没有传入订单ID
+            return "redirect:/order/history"; // 重定向到订单列表
+        }
+        Map<String, Object> user = (Map<String, Object>) session.getAttribute("user"); // 获取当前登录用户
+        if (user == null) {
+            return "redirect:/login"; // 未登录，跳转到登录页
+        }
+        String userId = (String) user.get("userid"); // 获取用户ID
+        try {
+            HttpHeaders headers = new HttpHeaders(); // 创建请求头
+            headers.set("X-User-Id", userId); // 携带用户ID（订单服务校验订单归属）
+            HttpEntity<Void> entity = new HttpEntity<>(headers); // 封装请求实体
+            // 调用订单服务获取订单详情
+            ResponseEntity<String> resp = restTemplate.exchange(
+                "http://bookstore-order/api/order/" + orderId,
+                HttpMethod.GET, entity, String.class); // GET /api/order/{orderId}
+            Map<String, Object> result = parseJson(resp.getBody()); // 解析JSON响应
+            Map<String, Object> data = (Map<String, Object>) result.get("data"); // 获取data字段
+            if (data != null) { // 订单数据存在
+                deepConvertDates(data); // 将日期字符串转换为Date对象（供JSTL fmt标签使用）
+                model.addAttribute("order", data); // 存入订单基本信息
+                // 获取订单中的商品明细列表
+                Object itemsObj = data.get("items"); // 从订单数据中取出items字段
+                if (itemsObj instanceof List) { // items是列表类型
+                    // 确保每个item的productId是String类型（JSP contains比较需要）
+                    List<Map<String, Object>> items = (List<Map<String, Object>>) itemsObj;
+                    for (Map<String, Object> it : items) {
+                        Object pidObj = it.get("productId");
+                        if (pidObj != null && !(pidObj instanceof String)) it.put("productId", String.valueOf(pidObj));
+                    }
+                    model.addAttribute("orderItems", items); // 存入订单商品列表
+                    // 检查是否有商品已被当前用户评价过
+                    java.util.Set<String> reviewedProductIds = new java.util.HashSet<>(); // 存放已评价的商品ID集合
+                    for (Object it : items) { // 遍历每个订单商品
+                        if (it instanceof Map) {
+                            Object pidObj = ((Map<?, ?>) it).get("productId"); // 获取商品ID
+                            String pid = pidObj != null ? String.valueOf(pidObj) : null;
+                            if (pid != null) {
+                                // 调用营销服务检查该商品是否已被当前用户评价
+                                try {
+                                    HttpHeaders rh = new HttpHeaders();
+                                    rh.set("X-User-Id", userId); // 携带用户ID
+                                    HttpEntity<Void> re = new HttpEntity<>(rh);
+                                    ResponseEntity<String> revResp = restTemplate.exchange(
+                                        "http://bookstore-promotion/api/review/product/" + pid + "?pageNum=1&pageSize=50",
+                                        HttpMethod.GET, re, String.class); // 查询该商品的所有评价
+                                    Map<String, Object> revResult = parseJson(revResp.getBody());
+                                    Map<String, Object> revData = (Map<String, Object>) revResult.get("data");
+                                    if (revData != null && revData.get("records") instanceof List) {
+                                        List<?> revs = (List<?>) revData.get("records");
+                                        for (Object r : revs) { // 检查是否有当前用户的评价
+                                            if (r instanceof Map && userId.equals(((Map<?, ?>) r).get("userId"))) {
+                                                reviewedProductIds.add(pid); // 已评价
+                                                break;
+                                            }
+                                        }
+                                    }
+                                } catch (Exception ignored) { /* 查询评价失败不影响订单显示 */ }
+                            }
+                        }
+                    }
+                    model.addAttribute("reviewedProducts", reviewedProductIds); // 已评价的商品ID集合（JSP用contains判断）
+                    model.addAttribute("orderLevelReviewed", reviewedProductIds.size() >= items.size()); // 整个订单是否已全部评价
+                }
+            } else {
+                return "redirect:/order/history"; // 订单不存在，返回列表
+            }
+        } catch (Exception e) { // 查询订单失败
+            return "redirect:/order/history"; // 返回订单列表
+        }
+        model.addAttribute("cartSize", 0);
         return "order_detail"; // 返回订单详情页
     }
 
@@ -735,11 +815,63 @@ public class PageController {
                     HttpMethod.GET, entity, String.class); // 获取订单列表（最多50条）
                 Map<String, Object> result = parseJson(resp.getBody());
                 Map<String, Object> data = (Map<String, Object>) result.get("data");
+                java.util.List<Map<String, Object>> orderList = new java.util.ArrayList<>(); // 订单列表
                 if (data != null && data.get("records") != null) {
-                    model.addAttribute("orderList", data.get("records")); // 存入订单列表
-                } else {
-                    model.addAttribute("orderList", new ArrayList<>());
+                    orderList = (java.util.List<Map<String, Object>>) data.get("records"); // 获取订单记录
+                    // 对所有订单中的日期字段进行深度转换，并确保orderid为String（JSP contains比较需要）
+                    for (Map<String, Object> o : orderList) {
+                        deepConvertDates(o); // 将字符串日期转为Date对象
+                        // 确保orderid是String类型，避免JSP中contains比较失败
+                        Object oid = o.get("orderid");
+                        if (oid != null && !(oid instanceof String)) o.put("orderid", String.valueOf(oid));
+                    }
                 }
+                model.addAttribute("orderList", orderList); // 存入订单列表
+
+                // 统计各状态订单数量和已评价订单ID
+                int cntAll = orderList.size(); // 总订单数
+                int cntPending = 0, cntPaid = 0, cntShipped = 0, cntCompleted = 0, cntCancelled = 0;
+                java.util.Set<String> reviewedOrderIds = new java.util.HashSet<>(); // 存放已评价的订单ID集合
+                for (Map<String, Object> o : orderList) { // 遍历所有订单统计状态
+                    String status = (String) o.get("status"); // 获取订单状态
+                    if ("待支付".equals(status)) cntPending++; // 待支付
+                    else if ("已支付".equals(status)) cntPaid++; // 已支付
+                    else if ("已发货".equals(status)) cntShipped++; // 已发货
+                    else if ("已完成".equals(status)) cntCompleted++; // 已完成
+                    else if ("已取消".equals(status)) cntCancelled++; // 已取消
+                    // 检查已完成订单是否已评价（查询订单中任一商品的评价即可判断）
+                    if ("已完成".equals(status)) { // 只有已完成订单才可能有评价
+                        Object itemsObj = o.get("items");
+                        if (itemsObj instanceof List && !((List<?>) itemsObj).isEmpty()) {
+                            try {
+                                // 检查第一个商品是否被当前用户评价
+                                Object pidObj = ((Map<?, ?>) ((List<?>) itemsObj).get(0)).get("productId");
+                                String pid = pidObj != null ? String.valueOf(pidObj) : null;
+                                if (pid != null) {
+                                    HttpHeaders rh = new HttpHeaders(); rh.set("X-User-Id", userId);
+                                    HttpEntity<Void> re = new HttpEntity<>(rh);
+                                    ResponseEntity<String> revResp = restTemplate.exchange(
+                                        "http://bookstore-promotion/api/review/product/" + pid + "?pageNum=1&pageSize=50",
+                                        HttpMethod.GET, re, String.class);
+                                    Map<String, Object> revResult = parseJson(revResp.getBody());
+                                    Map<String, Object> revData = (Map<String, Object>) revResult.get("data");
+                                    if (revData != null && revData.get("records") instanceof List) {
+                                        List<?> revs = (List<?>) revData.get("records");
+                                        for (Object r : revs) {
+                                            if (r instanceof Map && userId.equals(((Map<?, ?>) r).get("userId"))) {
+                                                reviewedOrderIds.add(String.valueOf(o.get("orderid"))); // 已评价
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (Exception ignored) { /* 查询失败不影响列表显示 */ }
+                        }
+                    }
+                }
+                model.addAttribute("cntAll", cntAll); // 总订单数
+                model.addAttribute("cntPending", cntPending); // 待支付数量
+                model.addAttribute("reviewedOrderIds", reviewedOrderIds); // 已评价的订单ID集合
             } catch (Exception e) {
                 model.addAttribute("orderList", new ArrayList<>());
             }
@@ -764,8 +896,9 @@ public class PageController {
         if (user == null) {
             return "redirect:/login"; // 未登录
         }
+        String userId = (String) user.get("userid");
+        model.addAttribute("userId", userId); // 将userId传递给JSP（支付页面需要）
         if (orderId != null && !orderId.isEmpty()) { // 有订单ID
-            String userId = (String) user.get("userid");
             try {
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("X-User-Id", userId);
@@ -789,23 +922,99 @@ public class PageController {
 
     /** 支付成功页面 */
     @GetMapping("/payment/success")
-    public String paymentSuccess() { return "payment/success"; }
+    public String paymentSuccess(@RequestParam(required = false) String orderId,
+                                  Model model, HttpSession session) {
+        loadPaymentResultData(orderId, model, session); // 加载订单号金额到Model
+        return "payment/success";
+    }
 
     /** 支付失败页面 */
     @GetMapping("/payment/fail")
-    public String paymentFail() { return "payment/fail"; }
+    public String paymentFail(@RequestParam(required = false) String orderId,
+                               Model model, HttpSession session) {
+        loadPaymentResultData(orderId, model, session); // 加载订单号金额到Model
+        return "payment/fail";
+    }
+
+    /** 支付结果页面公共数据加载 */
+    private void loadPaymentResultData(String orderId, Model model, HttpSession session) {
+        if (orderId != null && !orderId.isEmpty()) {
+            model.addAttribute("orderId", orderId); // 至少传递订单号
+            try {
+                Map<String, Object> user = (Map<String, Object>) session.getAttribute("user");
+                if (user != null) {
+                    String userId = String.valueOf(user.get("userid"));
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.set("X-User-Id", userId);
+                    HttpEntity<Void> entity = new HttpEntity<>(headers);
+                    ResponseEntity<String> resp = restTemplate.exchange(
+                        "http://bookstore-order/api/order/" + orderId,
+                        HttpMethod.GET, entity, String.class);
+                    Map<String, Object> result = parseJson(resp.getBody());
+                    Map<String, Object> orderData = (Map<String, Object>) result.get("data");
+                    if (orderData != null) {
+                        model.addAttribute("orderAmount", orderData.get("totalprice"));
+                    }
+                }
+            } catch (Exception ignored) {}
+        }
+    }
 
     /** 微信支付页面 */
     @GetMapping("/payment/wechat")
-    public String paymentWechat() { return "payment/wechat"; }
+    public String paymentWechat(@RequestParam(required = false) String orderId,
+                                 @RequestParam(required = false) String userId,
+                                 Model model, HttpSession session) {
+        loadPaymentSubPageData(orderId, userId, model, session); // 加载订单号和金额到Model
+        return "payment/wechat";
+    }
 
     /** 支付宝支付页面 */
     @GetMapping("/payment/alipay")
-    public String paymentAlipay() { return "payment/alipay"; }
+    public String paymentAlipay(@RequestParam(required = false) String orderId,
+                                 @RequestParam(required = false) String userId,
+                                 Model model, HttpSession session) {
+        loadPaymentSubPageData(orderId, userId, model, session); // 加载订单号和金额到Model
+        return "payment/alipay";
+    }
 
     /** 银行卡支付页面 */
     @GetMapping("/payment/card")
-    public String paymentCard() { return "payment/card"; }
+    public String paymentCard(@RequestParam(required = false) String orderId,
+                               @RequestParam(required = false) String userId,
+                               Model model, HttpSession session) {
+        loadPaymentSubPageData(orderId, userId, model, session); // 加载订单号和金额到Model
+        return "payment/card";
+    }
+
+    /** 支付子页面公共数据加载：从API获取订单号和金额 */
+    private void loadPaymentSubPageData(String orderId, String userId, Model model, HttpSession session) {
+        if (orderId == null || orderId.isEmpty()) return;
+        model.addAttribute("orderId", orderId); // 至少传递订单号
+        // 获取userId：优先URL参数，其次session，最后从API查
+        if (userId == null || userId.isEmpty()) {
+            Map<String, Object> user = (Map<String, Object>) session.getAttribute("user");
+            if (user != null) userId = String.valueOf(user.get("userid"));
+        }
+        if (userId != null && !userId.isEmpty()) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("X-User-Id", userId);
+                HttpEntity<Void> entity = new HttpEntity<>(headers);
+                ResponseEntity<String> resp = restTemplate.exchange(
+                    "http://bookstore-order/api/order/" + orderId,
+                    HttpMethod.GET, entity, String.class);
+                Map<String, Object> result = parseJson(resp.getBody());
+                Map<String, Object> orderData = (Map<String, Object>) result.get("data");
+                if (orderData != null) {
+                    model.addAttribute("order", orderData);
+                    model.addAttribute("orderAmount", orderData.get("totalprice"));
+                }
+            } catch (Exception e) {
+                model.addAttribute("orderAmount", "加载失败");
+            }
+        }
+    }
 
     // ======================== 用户中心页面 ========================
 
@@ -821,17 +1030,188 @@ public class PageController {
     @GetMapping("/user/message")
     public String userMessage() { return "user/message/list"; }
 
-    /** 商品评价页面 */
+    /**
+     * 商品评价页面
+     * 加载订单的商品列表，供用户选择评价对象并提交评价
+     *
+     * @param orderId 订单ID（query参数）
+     * @param productId 商品ID（可选，如果指定则评特定商品）
+     * @param model Model对象
+     * @param session HTTP会话
+     * @return 评价页面视图
+     */
     @GetMapping("/review")
-    public String review() { return "review"; }
+    public String review(@RequestParam(required = false) String orderId,
+                         @RequestParam(required = false) String productId,
+                         Model model, HttpSession session) {
+        Map<String, Object> user = (Map<String, Object>) session.getAttribute("user"); // 获取当前登录用户
+        if (user == null) {
+            return "redirect:/login"; // 未登录，跳转到登录页
+        }
+        String userId = (String) user.get("userid"); // 获取用户ID
+        if (orderId != null && !orderId.isEmpty()) { // 有订单ID
+            try {
+                HttpHeaders headers = new HttpHeaders(); // 创建请求头
+                headers.set("X-User-Id", userId); // 携带用户ID
+                HttpEntity<Void> entity = new HttpEntity<>(headers); // 封装请求实体
+                // 调用订单服务获取订单详情（含商品列表）
+                ResponseEntity<String> resp = restTemplate.exchange(
+                    "http://bookstore-order/api/order/" + orderId,
+                    HttpMethod.GET, entity, String.class); // GET /api/order/{orderId}
+                Map<String, Object> result = parseJson(resp.getBody()); // 解析JSON响应
+                Map<String, Object> data = (Map<String, Object>) result.get("data"); // 获取data字段
+                if (data != null) {
+                    Object itemsObj = data.get("items"); // 获取订单中的商品列表
+                    if (itemsObj instanceof List) { // items是列表类型
+                        List<Map<String, Object>> items = (List<Map<String, Object>>) itemsObj;
+                        model.addAttribute("items", items); // 存入商品列表（JSP遍历显示）
+                        model.addAttribute("orderId", orderId); // 存入订单ID
+                        // 如果指定了productId，存入用于预选中
+                        if (productId != null && !productId.isEmpty()) {
+                            model.addAttribute("productId", productId); // 预选中的商品ID
+                        }
+                    }
+                }
+            } catch (Exception e) { // 加载订单失败
+                model.addAttribute("error", "加载订单信息失败"); // 向页面传递错误信息
+            }
+        }
+        model.addAttribute("cartSize", 0);
+        return "review"; // 返回评价页面
+    }
 
-    /** 评价管理页面 */
+    /**
+     * 取消订单
+     * 将待支付订单状态设置为"已取消"
+     *
+     * @param orderId 订单ID
+     * @param session HTTP会话
+     * @param redirectAttributes 重定向属性（用于传递提示消息）
+     * @return 重定向到订单历史页
+     */
+    @PostMapping("/order/cancel") // 处理POST /order/cancel请求
+    public String cancelOrder(@RequestParam String orderId,
+                              HttpSession session,
+                              RedirectAttributes redirectAttributes) {
+        Map<String, Object> user = (Map<String, Object>) session.getAttribute("user"); // 获取用户信息
+        if (user == null) { // 未登录
+            return "redirect:/login"; // 跳转到登录页
+        }
+        String userId = (String) user.get("userid"); // 获取用户ID
+        try {
+            HttpHeaders headers = new HttpHeaders(); // 创建请求头
+            headers.set("X-User-Id", userId); // 携带用户ID（订单服务需要校验归属）
+            HttpEntity<Void> entity = new HttpEntity<>(headers); // 封装请求实体
+            // 调用订单服务的取消接口：POST /api/order/{orderId}/cancel
+            ResponseEntity<String> resp = restTemplate.exchange(
+                "http://bookstore-order/api/order/" + orderId + "/cancel",
+                HttpMethod.POST, entity, String.class); // 发起取消请求
+            if (resp.getStatusCode().is2xxSuccessful()) { // 请求成功
+                redirectAttributes.addFlashAttribute("success", "订单已取消"); // Flash消息（重定向后可读）
+            } else {
+                redirectAttributes.addFlashAttribute("error", "取消订单失败");
+            }
+        } catch (Exception e) { // 捕获所有异常
+            redirectAttributes.addFlashAttribute("error", "取消订单失败：" + e.getMessage());
+        }
+        return "redirect:/order/history"; // 重定向回订单列表
+    }
     @GetMapping("/review/manage")
-    public String reviewManage() { return "review_manage"; }
+    public String reviewManage(Model model, HttpSession session) {
+        Map<String, Object> user = (Map<String, Object>) session.getAttribute("user");
+        if (user == null) return "redirect:/login";
+        String userId = (String) user.get("userid");
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-User-Id", userId);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            ResponseEntity<String> resp = restTemplate.exchange(
+                "http://bookstore-promotion/api/review/my?pageNum=1&pageSize=50",
+                HttpMethod.GET, entity, String.class);
+            Map<String, Object> result = parseJson(resp.getBody());
+            Map<String, Object> data = (Map<String, Object>) result.get("data");
+            if (data != null && data.get("records") != null) {
+                java.util.List<?> records = (java.util.List<?>) data.get("records");
+                for (Object r : records) deepConvertDates(r);
+                model.addAttribute("reviews", records);
+            } else {
+                model.addAttribute("reviews", new ArrayList<>());
+            }
+        } catch (Exception e) {
+            model.addAttribute("reviews", new ArrayList<>());
+        }
+        return "review_manage";
+    }
+
+    /**
+     * 删除评价
+     */
+    @PostMapping("/review/delete")
+    public String deleteReview(@RequestParam String reviewId,
+                               HttpSession session,
+                               RedirectAttributes redirectAttributes) {
+        Map<String, Object> user = (Map<String, Object>) session.getAttribute("user");
+        if (user == null) return "redirect:/login";
+        String userId = (String) user.get("userid");
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-User-Id", userId);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            restTemplate.exchange(
+                "http://bookstore-promotion/admin/review/" + reviewId,
+                HttpMethod.DELETE, entity, String.class);
+            redirectAttributes.addFlashAttribute("success", "评价已删除");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "删除评价失败");
+        }
+        return "redirect:/review/manage";
+    }
 
     /** 配送说明页面 */
     @GetMapping("/shipping")
     public String shipping() { return "shipping"; }
+
+    /**
+     * 商品评价查看页面 - 展示某个商品的所有评价
+     */
+    @GetMapping("/product/review")
+    public String productReview(@RequestParam String productId, Model model) {
+        try {
+            String resp = restTemplate.getForObject(
+                "http://bookstore-promotion/api/review/product/" + productId + "?pageNum=1&pageSize=50", String.class);
+            Map<String, Object> result = parseJson(resp);
+            Map<String, Object> data = (Map<String, Object>) result.get("data");
+            if (data != null && data.get("records") != null) {
+                java.util.List<?> records = (java.util.List<?>) data.get("records");
+                for (Object r : records) deepConvertDates(r);
+                model.addAttribute("reviews", records);
+                // 计算平均评分
+                double avgRating = 0;
+                int reviewCount = records.size();
+                if (reviewCount > 0) {
+                    double sum = 0;
+                    for (Object r : records) {
+                        if (r instanceof Map) {
+                            Object rating = ((Map<?, ?>) r).get("rating");
+                            if (rating != null) sum += ((Number) rating).doubleValue();
+                        }
+                    }
+                    avgRating = sum / reviewCount;
+                }
+                model.addAttribute("avgRating", avgRating);
+                model.addAttribute("reviewCount", reviewCount);
+            } else {
+                model.addAttribute("reviews", new ArrayList<>());
+                model.addAttribute("avgRating", 0.0);
+                model.addAttribute("reviewCount", 0);
+            }
+        } catch (Exception e) {
+            model.addAttribute("reviews", new ArrayList<>());
+            model.addAttribute("avgRating", 0.0);
+            model.addAttribute("reviewCount", 0);
+        }
+        return "product_review";
+    }
 
     /** 退换货政策页面 */
     @GetMapping("/return-policy")
@@ -889,30 +1269,53 @@ public class PageController {
     public String paymentCallback(@RequestParam String orderId,
                                    @RequestParam(required = false) String status,
                                    @RequestParam(required = false) String paymentMethod,
-                                   HttpSession session) {
+                                   @RequestParam(required = false) String userId,
+                                   HttpSession session,
+                                   RedirectAttributes redirectAttributes) {
         if ("success".equals(status)) { // 支付成功
-            // 调用订单服务将订单状态从"待支付"更新为"已支付"
-            try {
-                Map<String, Object> user = (Map<String, Object>) session.getAttribute("user"); // 从Session获取当前登录用户信息
-                if (user != null) {
-                    String userId = (String) user.get("userid"); // 获取用户ID
-                    if (userId != null) {
-                        HttpHeaders headers = new HttpHeaders(); // 创建请求头
-                        headers.set("X-User-Id", userId); // 携带用户ID（订单服务需要校验订单归属）
-                        HttpEntity<Void> entity = new HttpEntity<>(headers); // 封装请求实体
-                        // 调用订单服务的支付接口：POST /api/order/{orderId}/pay
-                        restTemplate.exchange(
-                            "http://bookstore-order/api/order/" + orderId + "/pay",
-                            HttpMethod.POST, entity, String.class); // 发起支付请求
+            // 方式1：从URL参数获取userId（支付页面JSP传递）
+            // 方式2：从Session获取（登录时的用户信息）
+            // 方式3：从订单服务查询（无认证，仅提取userId）
+            if (userId == null || userId.isEmpty()) {
+                try {
+                    Map<String, Object> user = (Map<String, Object>) session.getAttribute("user");
+                    if (user != null) {
+                        userId = String.valueOf(user.get("userid"));
                     }
-                }
-            } catch (Exception e) {
-                // 如果支付状态更新失败（如订单不存在、状态异常），仍然跳转到成功页面
-                // 实际场景中应记录日志并通知管理员
+                } catch (Exception ignored) {}
             }
-            return "redirect:/payment/success?orderId=" + orderId;
+            // 方式3：回退方案 - 从订单服务直接查询订单获取userId
+            if (userId == null || userId.isEmpty()) {
+                try {
+                    ResponseEntity<String> orderResp = restTemplate.exchange(
+                        "http://bookstore-order/api/order/" + orderId,
+                        HttpMethod.GET, null, String.class);
+                    Map<String, Object> orderResult = parseJson(orderResp.getBody());
+                    Map<String, Object> orderData = (Map<String, Object>) orderResult.get("data");
+                    if (orderData != null) {
+                        userId = String.valueOf(orderData.get("userid"));
+                    }
+                } catch (Exception ignored) {}
+            }
+            // 执行支付状态更新
+            if (userId != null && !userId.isEmpty()) {
+                try {
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.set("X-User-Id", userId);
+                    restTemplate.exchange(
+                        "http://bookstore-order/api/order/" + orderId + "/pay",
+                        HttpMethod.POST, new HttpEntity<>(headers), String.class);
+                    return "redirect:/payment/success?orderId=" + orderId; // 真正成功才跳成功页
+                } catch (Exception e) {
+                    redirectAttributes.addFlashAttribute("error", "订单状态更新失败，请稍后重试");
+                    return "redirect:/payment/fail?orderId=" + orderId;
+                }
+            } else {
+                redirectAttributes.addFlashAttribute("error", "无法获取用户身份，支付失败");
+                return "redirect:/payment/fail?orderId=" + orderId;
+            }
         }
-        return "redirect:/payment/fail?orderId=" + orderId; // 支付失败
+        return "redirect:/payment/fail?orderId=" + orderId;
     }
 
     /**
@@ -964,9 +1367,10 @@ public class PageController {
     /**
      * 提交商品评价（表单提交接口）
      * 用户对已购买的商品进行评价，评价会存储到营销服务中
+     * 如果productId为空，则对订单中所有未评价商品逐一评价
      *
      * @param orderId 订单ID（关联评价的订单）
-     * @param productId 商品ID（被评价的商品）
+     * @param productId 商品ID（被评价的商品，空字符串表示评价整个订单）
      * @param rating 评分（1-5星）
      * @param content 评价内容
      * @param imageFile 晒图文件名（可选，前端表单中的file字段名）
@@ -975,10 +1379,10 @@ public class PageController {
      */
     @PostMapping("/review/submit") // 处理POST /review/submit请求
     public String submitReview(@RequestParam String orderId,
-                               @RequestParam String productId,
+                               @RequestParam(required = false, defaultValue = "") String productId,
                                @RequestParam int rating,
                                @RequestParam String content,
-                               @RequestParam(required = false) String imageFile,
+                               @RequestParam(required = false) MultipartFile imageFile,
                                HttpSession session,
                                RedirectAttributes redirectAttributes) {
         Map<String, Object> user = (Map<String, Object>) session.getAttribute("user"); // 从Session获取用户信息
@@ -991,22 +1395,64 @@ public class PageController {
             return "redirect:/review?orderId=" + orderId; // 重定向回评价页面
         }
         try {
-            // 构建评价提交的请求体
-            Map<String, Object> reviewData = new HashMap<>(); // 评价数据Map
-            reviewData.put("productId", productId); // 被评价的商品ID
-            reviewData.put("rating", rating); // 评分（1-5）
-            reviewData.put("content", content); // 评价文字内容
-            reviewData.put("image", imageFile != null ? imageFile : ""); // 晒图URL（可选）
-            HttpHeaders headers = new HttpHeaders(); // 创建请求头
-            headers.setContentType(MediaType.APPLICATION_JSON); // 设置Content-Type为JSON
-            headers.set("X-User-Id", userId); // 携带用户ID
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reviewData, headers); // 封装请求实体
-            // 调用营销服务的提交评价接口：POST /api/review
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                "http://bookstore-promotion/api/review", entity, String.class); // 发起评价提交请求
-            if (response.getStatusCode().is2xxSuccessful()) { // 请求成功
-                redirectAttributes.addFlashAttribute("success", "评价提交成功"); // 将成功消息存入Flash属性（重定向后可读取）
+            java.util.List<String> productIdsToReview = new java.util.ArrayList<>(); // 需要评价的商品ID列表
+            if (productId == null || productId.isEmpty()) { // 未指定具体商品 → 评价整个订单
+                // 从订单服务获取订单中的所有商品
+                HttpHeaders oh = new HttpHeaders(); oh.set("X-User-Id", userId);
+                HttpEntity<Void> oe = new HttpEntity<>(oh);
+                ResponseEntity<String> orderResp = restTemplate.exchange(
+                    "http://bookstore-order/api/order/" + orderId,
+                    HttpMethod.GET, oe, String.class);
+                Map<String, Object> orderResult = parseJson(orderResp.getBody());
+                Map<String, Object> orderData = (Map<String, Object>) orderResult.get("data");
+                if (orderData != null) {
+                    Object itemsObj = orderData.get("items"); // 获取订单商品列表
+                    if (itemsObj instanceof List) {
+                        for (Object it : (List<?>) itemsObj) {
+                            if (it instanceof Map) {
+                                Object pidObj = ((Map<?, ?>) it).get("productId");
+                                String pid = pidObj != null ? String.valueOf(pidObj) : null;
+                                if (pid != null) productIdsToReview.add(pid); // 收集所有商品ID
+                            }
+                        }
+                    }
+                }
             } else {
+                productIdsToReview.add(productId); // 只评价指定商品
+            }
+
+            if (productIdsToReview.isEmpty()) { // 没有需要评价的商品
+                redirectAttributes.addFlashAttribute("error", "未找到需要评价的商品");
+                return "redirect:/order/detail?orderId=" + orderId;
+            }
+
+            int successCount = 0; // 成功提交的评价数量
+            for (String pid : productIdsToReview) { // 对每个商品逐一提交评价
+                // 构建评价提交的请求体
+                Map<String, Object> reviewData = new HashMap<>(); // 评价数据Map
+                reviewData.put("productId", pid); // 被评价的商品ID
+                reviewData.put("rating", rating); // 评分（1-5）
+                reviewData.put("content", content); // 评价文字内容
+                reviewData.put("image", (imageFile != null && !imageFile.isEmpty()) ? imageFile.getOriginalFilename() : ""); // 晒图文件名
+                HttpHeaders headers = new HttpHeaders(); // 创建请求头
+                headers.setContentType(MediaType.APPLICATION_JSON); // 设置Content-Type为JSON
+                headers.set("X-User-Id", userId); // 携带用户ID
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(reviewData, headers); // 封装请求实体
+                // 调用营销服务的提交评价接口：POST /api/review
+                ResponseEntity<String> response = restTemplate.postForEntity(
+                    "http://bookstore-promotion/api/review", entity, String.class); // 发起评价提交请求
+                if (response.getStatusCode().is2xxSuccessful()) { // 请求成功
+                    successCount++;
+                }
+            }
+            if (successCount > 0) { // 至少有一条评价成功提交
+                if (productIdsToReview.size() > 1) {
+                    redirectAttributes.addFlashAttribute("success",
+                        "已成功评价 " + successCount + "/" + productIdsToReview.size() + " 件商品");
+                } else {
+                    redirectAttributes.addFlashAttribute("success", "评价提交成功");
+                }
+            } else { // 所有评价都失败
                 redirectAttributes.addFlashAttribute("error", "评价提交失败");
             }
         } catch (Exception e) { // 捕获所有异常
@@ -1048,31 +1494,31 @@ public class PageController {
 
     /** 管理后台商品列表路径兼容 -> /admin/product */
     @GetMapping("/admin/product/list")
-    public String adminProductListAlias() { return "redirect:/admin/product"; }
+    public String adminProductListAlias(HttpSession session) { return checkAdminOrRedirect(session, "redirect:/admin/product"); }
 
     /** 管理后台订单列表路径兼容 -> /admin/order */
     @GetMapping("/admin/order/list")
-    public String adminOrderListAlias() { return "redirect:/admin/order"; }
+    public String adminOrderListAlias(HttpSession session) { return checkAdminOrRedirect(session, "redirect:/admin/order"); }
 
     /** 管理后台用户列表路径兼容 -> /admin/user */
     @GetMapping("/admin/user/list")
-    public String adminUserListAlias() { return "redirect:/admin/user"; }
+    public String adminUserListAlias(HttpSession session) { return checkAdminOrRedirect(session, "redirect:/admin/user"); }
 
     /** 管理后台优惠券列表路径兼容 -> /admin/coupon */
     @GetMapping("/admin/coupon/list")
-    public String adminCouponListAlias() { return "redirect:/admin/coupon"; }
+    public String adminCouponListAlias(HttpSession session) { return checkAdminOrRedirect(session, "redirect:/admin/coupon"); }
 
     /** 管理后台公告列表路径兼容 -> /admin/announcement */
     @GetMapping("/admin/announcement/list")
-    public String adminAnnouncementListAlias() { return "redirect:/admin/announcement"; }
+    public String adminAnnouncementListAlias(HttpSession session) { return checkAdminOrRedirect(session, "redirect:/admin/announcement"); }
 
     /** 管理后台评价列表路径兼容 -> /admin/review */
     @GetMapping("/admin/review/list")
-    public String adminReviewListAlias() { return "redirect:/admin/review"; }
+    public String adminReviewListAlias(HttpSession session) { return checkAdminOrRedirect(session, "redirect:/admin/review"); }
 
     /** 管理后台消息列表路径兼容 -> /admin/message */
     @GetMapping("/admin/message/list")
-    public String adminMessageListAlias() { return "redirect:/admin/message"; }
+    public String adminMessageListAlias(HttpSession session) { return checkAdminOrRedirect(session, "redirect:/admin/message"); }
 
     /**
      * 管理后台分类列表页面，从商品服务获取分类数据
@@ -1081,7 +1527,8 @@ public class PageController {
      * @return 分类列表管理页视图
      */
     @GetMapping("/admin/categories")
-    public String adminCategoryList(Model model) {
+    public String adminCategoryList(Model model, HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String resp = restTemplate.getForObject("http://bookstore-product/api/category/list", String.class); // 获取分类
             Map<String, Object> result = parseJson(resp);
@@ -1090,6 +1537,21 @@ public class PageController {
             model.addAttribute("categoryList", new ArrayList<>()); // 失败时存空列表
         }
         return "admin/category/list"; // 返回分类管理页
+    }
+
+    /**
+     * 检查管理员是否已登录，未登录则返回重定向路径，已登录返回null
+     */
+    private String checkAdminSession(HttpSession session) {
+        return session.getAttribute("admin") == null ? "redirect:/admin/login" : null;
+    }
+
+    /**
+     * 检查管理员session，未认证重定向到登录页，已认证返回指定的重定向目标
+     */
+    private String checkAdminOrRedirect(HttpSession session, String redirectTarget) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
+        return redirectTarget;
     }
 
     // ======================== 管理后台认证 ========================
@@ -1118,20 +1580,36 @@ public class PageController {
             if (response.getStatusCode().is2xxSuccessful()) {
                 Map<String, Object> result = parseJson(response.getBody());
                 Map<String, Object> data = (Map<String, Object>) result.get("data");
+                if (data == null) { // API返回成功但没有data
+                    redirectAttributes.addFlashAttribute("error", "登录服务返回异常，请稍后重试");
+                    return "redirect:/admin/login";
+                }
                 Map<String, Object> user = (Map<String, Object>) data.get("user"); // 用户信息
-                if (user != null && "admin".equals(user.get("role"))) { // 检查是否为管理员角色
+                if (user == null) { // 没有用户信息
+                    redirectAttributes.addFlashAttribute("error", "登录服务返回异常，请稍后重试");
+                    return "redirect:/admin/login";
+                }
+                Object role = user.get("role"); // 获取角色
+                if ("admin".equals(role)) { // 检查是否为管理员角色
                     session.setAttribute("token", data.get("token")); // 存入token
                     session.setAttribute("admin", user); // 存入管理员信息（用"admin"键区分普通用户）
                     return "redirect:/admin/index"; // 跳转管理后台首页
                 }
-                redirectAttributes.addFlashAttribute("error", "无管理员权限"); // 非管理员
+                // 非管理员，显示具体角色信息方便排查
+                redirectAttributes.addFlashAttribute("error", "该账号角色为 [" + role + "]，无管理员权限");
                 return "redirect:/admin/login";
             }
-        } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "用户名或密码错误");
-            return "redirect:/admin/login";
+        } catch (Exception e) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("Connection refused")) {
+                redirectAttributes.addFlashAttribute("error", "用户服务未启动，请联系管理员");
+            } else if (msg != null && (msg.contains("账号已被禁用") || msg.contains("禁用"))) {
+                redirectAttributes.addFlashAttribute("error", "该管理员账号已被禁用");
+            } else {
+                redirectAttributes.addFlashAttribute("error", "登录失败: " + (msg != null ? msg : "未知错误"));
+            }
         }
-        redirectAttributes.addFlashAttribute("error", "用户名或密码错误");
         return "redirect:/admin/login";
     }
 
@@ -1166,17 +1644,8 @@ public class PageController {
      */
     @GetMapping("/admin/index")
     public String adminIndex(Model model, HttpSession session) {
-        loadDashboardData(model); // 加载核心统计数据（商品数、订单数、用户数、销售额等）
-        loadDashboardExtras(model); // 加载辅助数据（低库存、日志、未读消息）
-        try {
-            String resp = restTemplate.getForObject(
-                "http://bookstore-promotion/admin/announcement/list?pageNum=1&pageSize=5", String.class); // 获取最近5条公告
-            Map<String, Object> result = parseJson(resp);
-            Map<String, Object> data = (Map<String, Object>) result.get("data");
-            if (data != null) model.addAttribute("announcementList", data.getOrDefault("records", new ArrayList<>()));
-            else model.addAttribute("announcementList", new ArrayList<>());
-        } catch (Exception e) { model.addAttribute("announcementList", new ArrayList<>()); }
-        return "admin/index"; // 返回管理后台首页
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
+        return "redirect:/admin/dashboard"; // 重定向到已工作的数据大屏
     }
 
     /**
@@ -1186,7 +1655,8 @@ public class PageController {
      * @return 数据大屏视图
      */
     @GetMapping("/admin/dashboard")
-    public String adminDashboard(Model model) {
+    public String adminDashboard(Model model, HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         loadDashboardData(model); // 加载核心统计数据
         loadDashboardExtras(model); // 加载辅助数据
         model.addAttribute("pageTitle", "数据大屏"); // 设置页面标题
@@ -1303,6 +1773,9 @@ public class PageController {
                 model.addAttribute(countKeys[i], count); // 存入Model
             } catch (Exception e) { model.addAttribute(countKeys[i], 0); }
         }
+        // JSP需要的别名：pendingPay = 待支付订单数, pendingShip = 待发货订单数
+        model.addAttribute("pendingPay", model.getAttribute("pendingCount"));
+        model.addAttribute("pendingShip", model.getAttribute("paidCount"));
 
         try { // 获取热销商品（前5名）
             String resp = restTemplate.getForObject(
@@ -1321,12 +1794,14 @@ public class PageController {
         } catch (Exception ignored) {}
 
         // 将所有统计数据存入Model
+        model.addAttribute("productCount", totalProducts); // 商品总数（JSP用productCount）
         model.addAttribute("totalProducts", totalProducts); // 商品总数
         model.addAttribute("totalOrders", totalOrders); // 订单总数
         model.addAttribute("totalUsers", totalUsers); // 用户总数
         model.addAttribute("totalRevenue", totalRevenue); // 总销售额
         model.addAttribute("totalCoupons", totalCoupons); // 优惠券总数
         model.addAttribute("pendingOrders", pendingOrders); // 待处理订单数
+        model.addAttribute("hotProducts", bestsellers); // 热销商品列表（JSP用hotProducts）
         model.addAttribute("bestsellers", bestsellers); // 热销商品列表
     }
 
@@ -1343,7 +1818,9 @@ public class PageController {
     public String adminProductList(Model model,
                                    @RequestParam(required = false) String keyword,
                                    @RequestParam(defaultValue = "1") Integer pageNum,
-                                   @RequestParam(defaultValue = "10") Integer pageSize) {
+                                   @RequestParam(defaultValue = "10") Integer pageSize,
+                                   HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String url = "http://bookstore-product/api/product/list?pageNum=" + pageNum + "&pageSize=" + pageSize; // 构建URL
             if (keyword != null && !keyword.isEmpty()) url += "&keyword=" + keyword; // 追加搜索关键词
@@ -1378,7 +1855,8 @@ public class PageController {
      * @return 添加商品页视图
      */
     @GetMapping("/admin/product/add")
-    public String adminProductAdd(Model model) {
+    public String adminProductAdd(Model model, HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String resp = restTemplate.getForObject("http://bookstore-product/api/category/list", String.class); // 获取分类
             Map<String, Object> result = parseJson(resp);
@@ -1397,7 +1875,8 @@ public class PageController {
      * @return 编辑商品页视图
      */
     @GetMapping("/admin/product/edit")
-    public String adminProductEdit(@RequestParam(required = false) String id, Model model) {
+    public String adminProductEdit(@RequestParam(required = false) String id, Model model, HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         if (id != null && !id.isEmpty()) {
             try {
                 String resp = restTemplate.getForObject("http://bookstore-product/api/product/" + id, String.class); // 获取商品详情
@@ -1428,7 +1907,9 @@ public class PageController {
     @GetMapping("/admin/product/stock")
     public String adminProductStock(Model model,
                                     @RequestParam(defaultValue = "1") Integer pageNum,
-                                    @RequestParam(defaultValue = "10") Integer pageSize) {
+                                    @RequestParam(defaultValue = "10") Integer pageSize,
+                                    HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String url = "http://bookstore-product/api/product/list?pageNum=" + pageNum + "&pageSize=" + pageSize;
             String resp = restTemplate.getForObject(url, String.class); // 获取商品列表
@@ -1453,7 +1934,8 @@ public class PageController {
      * @return 热销排行页视图
      */
     @GetMapping("/admin/product/bestseller")
-    public String adminProductBestseller(Model model) {
+    public String adminProductBestseller(Model model, HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String resp = restTemplate.getForObject("http://bookstore-product/api/product/hot?limit=20", String.class); // 获取热销前20
             Map<String, Object> result = parseJson(resp);
@@ -1477,7 +1959,9 @@ public class PageController {
     public String adminUserList(Model model,
                                 @RequestParam(required = false) String keyword,
                                 @RequestParam(defaultValue = "1") Integer pageNum,
-                                @RequestParam(defaultValue = "10") Integer pageSize) {
+                                @RequestParam(defaultValue = "10") Integer pageSize,
+                                HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String url = "http://bookstore-user/admin/user/list?pageNum=" + pageNum + "&pageSize=" + pageSize; // 构建URL
             if (keyword != null && !keyword.isEmpty()) url += "&keyword=" + keyword; // 追加搜索
@@ -1500,7 +1984,8 @@ public class PageController {
 
     /** 管理后台添加用户页面 */
     @GetMapping("/admin/user/add")
-    public String adminUserAdd() {
+    public String adminUserAdd(HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         return "admin/user/add"; // 返回添加用户页
     }
 
@@ -1512,7 +1997,8 @@ public class PageController {
      * @return 编辑用户页视图
      */
     @GetMapping("/admin/user/edit")
-    public String adminUserEdit(@RequestParam(required = false) String id, Model model) {
+    public String adminUserEdit(@RequestParam(required = false) String id, Model model, HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         if (id != null && !id.isEmpty()) {
             try {
                 String resp = restTemplate.getForObject("http://bookstore-user/api/user/" + id, String.class); // 获取用户详情
@@ -1538,7 +2024,9 @@ public class PageController {
     public String adminOrderList(Model model,
                                  @RequestParam(defaultValue = "1") Integer pageNum,
                                  @RequestParam(defaultValue = "10") Integer pageSize,
-                                 @RequestParam(required = false) String status) {
+                                 @RequestParam(required = false) String status,
+                                 HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         // 加载各状态订单统计数据
         long totalOrders = 0, pendingCount = 0, paidCount = 0, shippingCount = 0, completedCount = 0, cancelledCount = 0;
         double totalRevenue = 0;
@@ -1607,7 +2095,8 @@ public class PageController {
      * @return 订单详情页视图
      */
     @GetMapping("/admin/order/detail")
-    public String adminOrderDetail(@RequestParam(required = false) String id, Model model) {
+    public String adminOrderDetail(@RequestParam(required = false) String id, Model model, HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         if (id != null && !id.isEmpty()) {
             try {
                 String resp = restTemplate.getForObject("http://bookstore-order/admin/order/" + id, String.class); // 获取订单详情
@@ -1631,7 +2120,9 @@ public class PageController {
     @GetMapping("/admin/coupon")
     public String adminCouponList(Model model,
                                   @RequestParam(defaultValue = "1") Integer pageNum,
-                                  @RequestParam(defaultValue = "10") Integer pageSize) {
+                                  @RequestParam(defaultValue = "10") Integer pageSize,
+                                  HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         long totalCoupons = 0;
         try {
             String url = "http://bookstore-promotion/admin/coupon/list?pageNum=" + pageNum + "&pageSize=" + pageSize; // 构建URL
@@ -1669,7 +2160,9 @@ public class PageController {
                                   @RequestParam(defaultValue = "1") Integer pageNum,
                                   @RequestParam(defaultValue = "10") Integer pageSize,
                                   @RequestParam(required = false) String keyword,
-                                  @RequestParam(required = false) String status) {
+                                  @RequestParam(required = false) String status,
+                                  HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String url = "http://bookstore-promotion/admin/review/list?pageNum=" + pageNum + "&pageSize=" + pageSize; // 构建URL
             String resp = restTemplate.getForObject(url, String.class); // 获取评价列表
@@ -1700,7 +2193,9 @@ public class PageController {
     @GetMapping("/admin/message")
     public String adminMessageList(Model model,
                                    @RequestParam(defaultValue = "1") Integer pageNum,
-                                   @RequestParam(defaultValue = "10") Integer pageSize) {
+                                   @RequestParam(defaultValue = "10") Integer pageSize,
+                                   HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String url = "http://bookstore-message/admin/message/list?pageNum=" + pageNum + "&pageSize=" + pageSize; // 构建URL
             String resp = restTemplate.getForObject(url, String.class); // 获取消息列表
@@ -1731,7 +2226,9 @@ public class PageController {
     @GetMapping("/admin/announcement")
     public String adminAnnouncementList(Model model,
                                         @RequestParam(defaultValue = "1") Integer pageNum,
-                                        @RequestParam(defaultValue = "10") Integer pageSize) {
+                                        @RequestParam(defaultValue = "10") Integer pageSize,
+                                        HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             String url = "http://bookstore-promotion/admin/announcement/list?pageNum=" + pageNum + "&pageSize=" + pageSize; // 构建URL
             String resp = restTemplate.getForObject(url, String.class); // 获取公告列表
@@ -1762,7 +2259,9 @@ public class PageController {
     public String adminLogList(Model model,
                                @RequestParam(defaultValue = "1") Integer pageNum,
                                @RequestParam(defaultValue = "10") Integer pageSize,
-                               @RequestParam(required = false) String keyword) {
+                               @RequestParam(required = false) String keyword,
+                               HttpSession session) {
+        if (session.getAttribute("admin") == null) return "redirect:/admin/login";
         try {
             // 调用日志服务获取日志列表（支持分页和关键词搜索）
             PageResult<Map<String, Object>> logResult = adminLogService.getLogList(pageNum, pageSize, keyword);
@@ -1779,7 +2278,7 @@ public class PageController {
 
     /** 管理后台日志列表路径兼容 -> /admin/log */
     @GetMapping("/admin/log/list")
-    public String adminLogListAlias() {
-        return "redirect:/admin/log"; // 重定向到日志列表页
+    public String adminLogListAlias(HttpSession session) {
+        return checkAdminOrRedirect(session, "redirect:/admin/log");
     }
 }
