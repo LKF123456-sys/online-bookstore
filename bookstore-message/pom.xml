@@ -1,8 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>  <!-- XML声明，指定版本1.0和UTF-8编码 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0"  <!-- Maven项目的命名空间，固定值 -->
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  <!-- XML Schema实例命名空间，用于校验XML格式 -->
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">  <!-- 指定XML Schema文件的位置 -->
-    <modelVersion>4.0.0</modelVersion>  <!-- POM模型版本，固定为4.0.0 -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- XML声明，指定版本1.0和UTF-8编码 -->
+<!-- Maven POM文件，定义模块的依赖和构建配置 -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <!-- POM模型版本，固定为4.0.0 -->
 
     <!-- ========== 父项目配置 ========== -->
     <!-- 继承父项目的统一版本管理和依赖管理 -->

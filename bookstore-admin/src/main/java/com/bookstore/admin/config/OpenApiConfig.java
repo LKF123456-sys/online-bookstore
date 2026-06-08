@@ -45,7 +45,8 @@ public class OpenApiConfig {
         return new OpenAPI()
                 .info(new Info() // 设置API基本信息
                         .title("BookVerse 在线书店 — 管理后台 API") // API文档标题
-                        .description(""" // API文档描述（支持HTML格式）
+                        // API文档描述（支持HTML格式的文本块）
+                        .description("""
                                 <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:20px;border-radius:12px;color:#fff;margin-bottom:16px;">
                                   <h2 style="margin:0 0 8px 0;">📚 BookVerse 管理后台 API 文档</h2>
                                   <p style="margin:0;opacity:0.9;">微服务架构 · Spring Cloud · RESTful API v1.0</p>
