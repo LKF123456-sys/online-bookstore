@@ -1,11 +1,35 @@
 {
+  // ===== compilerOptions：TypeScript 编译器选项 =====
+  // 这些选项控制 TypeScript 编译器（tsc）如何将 .ts 源码编译为 .js 输出
   "compilerOptions": {
+    // target：编译生成的 JavaScript 目标版本
+    // "ES2020" 表示输出 ES2020 标准的 JS 代码，支持可选链（?.）、空值合并（??）等现代语法
     "target": "ES2020",
+
+    // module：指定生成的模块系统
+    // "ESNext" 表示使用最新的 ES 模块标准（import/export），由 Vite 等打包工具进一步处理
     "module": "ESNext",
+
+    // moduleResolution：模块解析策略
+    // "bundler" 表示使用打包器（bundler）风格的模块解析，适用于 Vite/Webpack 等打包工具环境
+    // 支持省略文件扩展名、识别 package.json 中的 exports 字段等
     "moduleResolution": "bundler",
+
+    // strict：启用所有严格类型检查选项
+    // true 等同于同时开启 strictNullChecks、strictPropertyInitialization 等，确保代码类型安全
     "strict": true,
+
+    // jsx：控制 JSX 代码的处理方式
+    // "preserve" 表示保留 JSX 语法不转换，交由后续工具（如 @vitejs/plugin-vue）处理
     "jsx": "preserve",
+
+    // paths：路径别名映射配置
+    // "@/xxx": ["./src/xxx"] 将 @ 符号映射到 src 目录
+    // 效果：import xxx from '@/components/Foo.vue' 等价于 import xxx from './src/components/Foo.vue'
     "paths": { "@/*": ["./src/*"] }
   },
+
+  // include：指定需要被 TypeScript 编译器处理的文件范围
+  // "src/**/*" 表示 src 目录下所有层级的所有文件都会被编译
   "include": ["src/**/*"]
 }

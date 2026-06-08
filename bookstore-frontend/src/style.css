@@ -1,34 +1,71 @@
 /* ===== NEON CYBERPUNK THEME — BookVerse ===== */
+/* 赛博朋克霓虹主题 — BookVerse 在线书城 */
+
+/* ===== CSS 变量（自定义属性）定义 ===== */
+/* :root 伪类选择器表示文档根元素（html），在此定义全局 CSS 变量 */
 :root {
+  /* 主背景色：深蓝黑（#060612），营造暗色科技感基底，用于页面整体背景 */
   --bg-primary: #060612;
+  /* 次背景色：深紫蓝（#0d0d2b），用于二级面板、侧边栏等区域的背景 */
   --bg-secondary: #0d0d2b;
+  /* 卡片背景色：半透明深紫蓝（rgba 0.75 不透明度），配合 backdrop-filter 实现毛玻璃效果 */
   --bg-card: rgba(14, 14, 45, 0.75);
+  /* 主色调：霓虹青（#00f0ff），赛博朋克风格的标志性霓虹青色，用于链接、高亮、边框发光 */
   --primary: #00f0ff;
+  /* 主色调深色变体：深青（#00c8d6），用于渐变按钮的起始颜色，比 primary 稍暗 */
   --primary-dark: #00c8d6;
+  /* 主色调发光色：霓虹青 25% 不透明度，用于 box-shadow 和 text-shadow 的发光效果 */
   --primary-glow: rgba(0, 240, 255, 0.25);
+  /* 次要色：霓虹紫（#9d4edd），用于次要强调元素，如二级按钮、标签等 */
   --secondary: #9d4edd;
+  /* 次要色发光色：霓虹紫 25% 不透明度，用于紫色元素的发光阴影 */
   --secondary-glow: rgba(157, 78, 221, 0.25);
+  /* 强调色：霓虹粉（#ff006e），用于需要强关注的元素，如促销标签 */
   --accent: #ff006e;
+  /* 强调色发光色：霓虹粉 20% 不透明度，用于粉色强调元素的发光阴影 */
   --accent-glow: rgba(255, 0, 110, 0.2);
+  /* 成功色：霓虹绿（#00ff88），用于成功状态、完成标识 */
   --success: #00ff88;
+  /* 警告色：琥珀黄（#ffb700），用于警告状态、待处理标识 */
   --warning: #ffb700;
+  /* 危险色：玫红（#ff3366），用于错误状态、删除操作按钮 */
   --danger: #ff3366;
+  /* 主文字色：浅蓝白（#e0e8ff），在深色背景上保证清晰可读性 */
   --text: #e0e8ff;
+  /* 次要文字色：灰紫蓝（#7a85b8），用于辅助说明文字，层级低于主文字 */
   --text-secondary: #7a85b8;
+  /* 暗淡文字色：深灰蓝（#4a5280），用于占位符（placeholder）、禁用状态文字 */
   --text-dim: #4a5280;
+  /* 边框色：霓虹青 12% 不透明度，用于卡片和输入框的默认淡色边框 */
   --border: rgba(0, 240, 255, 0.12);
+  /* 边框发光色：霓虹青 35% 不透明度，用于悬停或聚焦时的发光边框效果 */
   --border-glow: rgba(0, 240, 255, 0.35);
+  /* 圆角大小：10px，用于卡片等较大的 UI 元素 */
   --radius: 10px;
+  /* 小圆角大小：6px，用于按钮、输入框等较小的 UI 元素 */
   --radius-sm: 6px;
+  /* 阴影：深黑 40% 不透明度，用于卡片等元素的常规投影 */
   --shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+  /* 发光阴影：使用主色调发光色变量，用于按钮和卡片的霓虹发光效果 */
   --shadow-glow: 0 0 25px var(--primary-glow);
+  /* 等宽字体栈：优先使用 JetBrains Mono，其次 Fira Code、Consolas，用于代码块或数字显示 */
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 
+/* ===== 全局基础重置 ===== */
+/* 通配选择器 *：清除所有 HTML 元素的默认外边距和内边距，设置为 border-box 盒模型（宽高包含 padding 和 border） */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* html 根元素：启用平滑滚动行为，锚点链接跳转时会有过渡动画而非瞬间跳转 */
 html { scroll-behavior: smooth; }
 
+/* body 主体样式：
+   - font-family: 系统默认字体栈，末尾包含 Noto Sans SC 中文字体作为回退
+   - background: 使用主背景色变量，深色科技感背景
+   - color: 使用主文字色变量，浅色文字适配深色背景
+   - line-height: 1.65 行高，提升长篇文字的可读性
+   - min-height: 100vh 确保页面至少撑满整个视口高度
+   - overflow-x: hidden 禁止页面横向溢出产生滚动条 */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
   background: var(--bg-primary);
@@ -38,7 +75,16 @@ body {
   overflow-x: hidden;
 }
 
-/* Global background: subtle grid */
+/* ===== body::before 伪元素：全局网格线背景 ===== */
+/* 使用伪元素在页面底层绘制科技感网格线：
+   - content: '' 必须设置才能显示伪元素
+   - position: fixed 固定定位，不随页面滚动
+   - inset: 0 等同于 top/right/bottom/left 全为 0，铺满整个视口
+   - z-index: -2 置于所有内容元素之下
+   - 两道 linear-gradient 交叉绘制：第一道水平线（纵向渐变），第二道垂直线（横向 90deg 渐变）
+     每条线由 1px 的霓虹青极淡色（2%不透明度）和透明组成
+   - background-size: 60px 60px 控制网格线间距为 60px
+   - pointer-events: none 让鼠标事件穿透此层，不影响下方元素交互 */
 body::before {
   content: '';
   position: fixed;
@@ -51,7 +97,15 @@ body::before {
   pointer-events: none;
 }
 
-/* Ambient glow orbs */
+/* ===== body::after 伪元素：环境光晕球体 ===== */
+/* 使用伪元素在页面右上角绘制一个大气氛光晕：
+   - position: fixed 固定定位
+   - z-index: -1 在网格线之上、页面内容之下
+   - pointer-events: none 不阻挡鼠标事件
+   - width/height: 600px 设置光晕球体尺寸
+   - border-radius: 50% 圆形
+   - background: radial-gradient 径向渐变，从中心霓虹青 4% 不透明度向外过渡到完全透明
+   - top: -200px; right: -100px 定位在页面右上角外侧，产生从角落散发光晕的视觉效果 */
 body::after {
   content: '';
   position: fixed;
@@ -63,12 +117,31 @@ body::after {
   top: -200px; right: -100px;
 }
 
+/* ===== 链接样式 ===== */
+/* a 标签默认状态：使用主色（霓虹青），去掉默认下划线，0.25s 过渡动画 */
 a { color: var(--primary); text-decoration: none; transition: all .25s; }
+/* a 标签悬停状态：文字变白，添加霓虹青 text-shadow 文字发光效果 */
 a:hover { color: #fff; text-shadow: 0 0 10px var(--primary-glow); }
 
+/* ===== 容器类 ===== */
+/* .container 通用内容容器：最大宽度 1240px，水平居中（margin: 0 auto），左右各 24px 内边距 */
 .container { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
 
-/* ===== BUTTONS ===== */
+/* ===== BUTTONS 按钮样式 ===== */
+/* .btn 基础按钮类：
+   - display: inline-flex 使按钮为行内弹性容器，图标和文字可轻松对齐
+   - align-items: center 垂直居中对齐
+   - justify-content: center 水平居中对齐
+   - padding: 10px 22px 上下 10px、左右 22px 内边距
+   - border-radius: 使用小圆角变量 6px
+   - font-weight: 600 半粗字体
+   - font-size: 14px 字号
+   - border: none 去除默认边框
+   - cursor: pointer 鼠标变为手型指针
+   - transition: all .3s 所有属性 0.3s 过渡动画
+   - gap: 8px 弹性子元素间距（图标与文字间距）
+   - position: relative 为 ::after 伪元素提供定位上下文
+   - overflow: hidden 隐藏 ::after 伪元素的溢出部分 */
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
   padding: 10px 22px; border-radius: var(--radius-sm);
@@ -76,26 +149,52 @@ a:hover { color: #fff; text-shadow: 0 0 10px var(--primary-glow); }
   transition: all .3s; gap: 8px; position: relative;
   overflow: hidden;
 }
+/* .btn::after 伪元素：悬停时的半透明遮罩层
+   - content: '' 必须设置才能显示
+   - position: absolute 绝对定位在按钮内部
+   - inset: 0 铺满整个按钮区域
+   - opacity: 0 默认完全透明（不可见）
+   - transition: opacity .3s 不透明度 0.3s 过渡
+   - pointer-events: none 不阻挡鼠标事件（不影响按钮点击） */
 .btn::after {
   content: ''; position: absolute; inset: 0;
   opacity: 0; transition: opacity .3s;
   pointer-events: none;
 }
+/* .btn:hover::after 悬停时遮罩变为 8% 不透明度，产生微妙的亮度提升反馈 */
 .btn:hover::after { opacity: 0.08; }
+/* .btn-primary 主操作按钮：
+   - background: 135deg 对角渐变，从深青 #00c8d6 到蓝 #0098db
+   - color: #fff 白色文字
+   - box-shadow: 带发光效果的青色阴影（35%不透明度） */
 .btn-primary {
   background: linear-gradient(135deg, #00c8d6, #0098db);
   color: #fff; box-shadow: 0 4px 20px rgba(0,200,214,0.35);
 }
+/* .btn-primary:hover 主按钮悬停：阴影增强变亮，按钮向上平移 1px 产生浮起效果 */
 .btn-primary:hover { box-shadow: 0 6px 30px rgba(0,200,214,0.5); transform: translateY(-1px); }
+/* .btn-danger 危险操作按钮：135deg 红色渐变，从玫红 #ff3366 到暗红 #cc0050 */
 .btn-danger { background: linear-gradient(135deg, #ff3366, #cc0050); color: #fff; }
+/* .btn-outline 描边/轮廓按钮：透明背景，发光边框，主色文字 */
 .btn-outline {
   background: transparent; border: 1px solid var(--border-glow); color: var(--primary);
 }
+/* .btn-outline:hover 描边按钮悬停：边框变为纯主色，添加霓虹发光阴影 */
 .btn-outline:hover { border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+/* .btn-sm 小尺寸按钮变体：减小内边距和字号 */
 .btn-sm { padding: 6px 14px; font-size: 12px; }
+/* .btn:disabled 禁用按钮：降低整体不透明度至 40%，鼠标变为不可点击，禁用所有鼠标事件 */
 .btn:disabled { opacity: .4; cursor: not-allowed; pointer-events: none; }
 
-/* ===== CARDS ===== */
+/* ===== CARDS 卡片样式 ===== */
+/* .card 毛玻璃卡片：
+   - background: 使用半透明深色背景变量，实现透明基底
+   - border: 1px 淡霓虹青边框
+   - border-radius: 使用圆角变量 10px
+   - backdrop-filter: blur(12px) 对卡片后方内容进行 12px 高斯模糊（毛玻璃核心效果）
+   - -webkit-backdrop-filter: 同上，Safari/WebKit 浏览器前缀兼容
+   - padding: 24px 内边距
+   - transition: all .3s 过渡动画 */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -105,12 +204,24 @@ a:hover { color: #fff; text-shadow: 0 0 10px var(--primary-glow); }
   padding: 24px;
   transition: all .3s;
 }
+/* .card:hover 卡片悬停：边框变亮（使用发光边框色），添加霓虹青阴影 */
 .card:hover {
   border-color: var(--border-glow);
   box-shadow: 0 0 25px rgba(0,240,255,0.08);
 }
 
-/* ===== INPUTS ===== */
+/* ===== INPUTS 输入框样式 ===== */
+/* .input 通用输入框：
+   - width: 100% 撑满父容器宽度
+   - padding: 12px 16px 上下 12px、左右 16px 内边距
+   - background: 白色 4% 不透明度，深色半透明背景
+   - border: 使用淡边框色变量
+   - border-radius: 使用小圆角变量 6px
+   - color: 主文字色
+   - font-size: 14px
+   - font-family: inherit 继承父元素字体
+   - transition: all .3s 过渡动画
+   - outline: none 去除浏览器默认聚焦轮廓线 */
 .input {
   width: 100%; padding: 12px 16px;
   background: rgba(255,255,255,0.04);
@@ -119,66 +230,120 @@ a:hover { color: #fff; text-shadow: 0 0 10px var(--primary-glow); }
   color: var(--text); font-size: 14px; font-family: inherit;
   transition: all .3s; outline: none;
 }
+/* .input:focus 输入框聚焦状态：
+   - border-color 变为纯主色（霓虹青）
+   - box-shadow 添加霓虹青发光效果
+   - background 背景略微变亮（6%不透明度） */
 .input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 15px var(--primary-glow);
   background: rgba(255,255,255,0.06);
 }
+/* .input::placeholder 占位符文字：使用暗淡文字色变量 */
 .input::placeholder { color: var(--text-dim); }
+/* select.input 下拉选择框：鼠标变为手型指针 */
 select.input { cursor: pointer; }
+/* select.input option 下拉选项：深色背景配浅色文字，保持主题一致性 */
 select.input option { background: var(--bg-secondary); color: var(--text); }
 
-/* ===== BADGES ===== */
+/* ===== BADGES 状态标签 ===== */
+/* .badge 基础标签：
+   - display: inline-block 行内块元素，不独占一行
+   - padding: 3px 10px 上下 3px、左右 10px
+   - border-radius: 12px 胶囊形（圆角足够大形成药丸形状）
+   - font-size: 11px 小字号
+   - font-weight: 600 半粗字体
+   - letter-spacing: .3px 微调字间距 */
 .badge {
   display: inline-block; padding: 3px 10px; border-radius: 12px;
   font-size: 11px; font-weight: 600; letter-spacing: .3px;
 }
+/* .badge-pending 待处理标签：黄色半透明背景 + 黄色文字 + 黄色半透明边框 */
 .badge-pending { background: rgba(255,183,0,0.15); color: #ffb700; border: 1px solid rgba(255,183,0,0.3); }
+/* .badge-paid 已支付标签：青色半透明背景 + 青色文字 + 青色半透明边框 */
 .badge-paid { background: rgba(0,240,255,0.12); color: var(--primary); border: 1px solid rgba(0,240,255,0.25); }
+/* .badge-shipped 已发货标签：紫色半透明背景 + 紫色文字 + 紫色半透明边框 */
 .badge-shipped { background: rgba(157,78,221,0.12); color: var(--secondary); border: 1px solid rgba(157,78,221,0.25); }
+/* .badge-done 已完成标签：绿色半透明背景 + 绿色文字 + 绿色半透明边框 */
 .badge-done { background: rgba(0,255,136,0.12); color: var(--success); border: 1px solid rgba(0,255,136,0.25); }
+/* .badge-cancel 已取消标签：灰色半透明背景 + 次要文字色 + 灰色半透明边框 */
 .badge-cancel { background: rgba(122,133,184,0.1); color: var(--text-secondary); border: 1px solid rgba(122,133,184,0.2); }
 
-/* ===== GRID ===== */
+/* ===== GRID 网格布局 ===== */
+/* .grid 基础网格容器：display: grid 启用 CSS Grid 布局，gap: 24px 网格间距 */
 .grid { display: grid; gap: 24px; }
+/* .grid-2 两列等分网格：repeat(2, 1fr) 表示每列等宽，共 2 列 */
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
+/* .grid-3 三列等分网格：共 3 列等宽 */
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
+/* .grid-4 四列等分网格：共 4 列等宽 */
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
+/* @media 响应式断点：视口宽度 ≤ 1024px（小屏桌面/平板横屏）时，四列降为三列 */
 @media (max-width: 1024px) { .grid-4 { grid-template-columns: repeat(3, 1fr); } }
+/* @media 响应式断点：视口宽度 ≤ 768px（平板竖屏/手机）时，所有多列网格降为单列堆叠 */
 @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
 
-/* ===== TRANSITIONS ===== */
+/* ===== TRANSITIONS Vue 过渡动画 ===== */
+/* .fade-enter-active / .fade-leave-active：Vue 过渡的激活状态，0.25s opacity 过渡 */
 .fade-enter-active, .fade-leave-active { transition: opacity .25s ease; }
+/* .fade-enter-from / .fade-leave-to：进入起始和离开结束状态，完全透明（不可见） */
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* ===== UTILITIES ===== */
+/* ===== UTILITIES 工具类 ===== */
+/* .text-center 文字水平居中 */
 .text-center { text-align: center; }
+/* .text-muted 次要文字颜色（灰色调），用于不那么重要的提示文字 */
 .text-muted { color: var(--text-secondary); }
+/* .mt-1 上外边距 8px，用于紧凑间距 */
 .mt-1 { margin-top: 8px; }
+/* .mt-2 上外边距 16px，用于常规间距 */
 .mt-2 { margin-top: 16px; }
+/* .mt-3 上外边距 28px，用于大间距分隔 */
 .mt-3 { margin-top: 28px; }
+/* .mb-1 下外边距 8px */
 .mb-1 { margin-bottom: 8px; }
+/* .mb-2 下外边距 16px */
 .mb-2 { margin-bottom: 16px; }
+/* .mx-1 左右外边距各 8px */
 .mx-1 { margin: 0 8px; }
 
-/* ===== SCROLLBAR ===== */
+/* ===== SCROLLBAR 自定义滚动条样式（WebKit 内核浏览器） ===== */
+/* ::-webkit-scrollbar 滚动条整体：宽度 6px，细窄滚动条适配科技风格 */
 ::-webkit-scrollbar { width: 6px; }
+/* ::-webkit-scrollbar-track 滚动条轨道（背景槽）：使用主背景色，与页面背景融为一体 */
 ::-webkit-scrollbar-track { background: var(--bg-primary); }
+/* ::-webkit-scrollbar-thumb 滚动条滑块（可拖动的部分）：
+   - 霓虹青 20% 不透明度
+   - border-radius: 3px 圆角滑块 */
 ::-webkit-scrollbar-thumb { background: rgba(0,240,255,0.2); border-radius: 3px; }
+/* ::-webkit-scrollbar-thumb:hover 滑块悬停：不透明度提升至 40%，更明显的交互反馈 */
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.4); }
 
-/* ===== SELECTION ===== */
+/* ===== SELECTION 文本选中样式 ===== */
+/* ::selection 用户选中文本时的样式：霓虹青 30% 不透明度背景 + 白色文字 */
 ::selection { background: rgba(0,240,255,0.3); color: #fff; }
 
-/* ===== LOADING ===== */
+/* ===== LOADING 加载动画 ===== */
+/* .loading-spinner 旋转加载指示器：
+   - width/height: 32px 正方形
+   - border: 3px 淡色边框（除顶部外其余三边为淡色）
+   - border-top-color: 顶部边框使用主色（霓虹青），形成缺角圆环
+   - border-radius: 50% 圆形
+   - animation: spin .8s linear infinite 调用 spin 动画，0.8s 一圈，线性匀速，无限循环
+   - margin: 40px auto 上下 40px 间距，水平居中 */
 .loading-spinner {
   width: 32px; height: 32px; border: 3px solid var(--border);
   border-top-color: var(--primary); border-radius: 50%;
   animation: spin .8s linear infinite; margin: 40px auto;
 }
+/* @keyframes spin 旋转关键帧动画：从 0deg 到 360deg 完整旋转一圈 */
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ===== ANIMATIONS ===== */
+/* ===== ANIMATIONS 通用关键帧动画 ===== */
+/* @keyframes glowPulse 呼吸发光脉冲动画：
+   - 0% 和 100%（动画首尾）：阴影 10px 模糊半径（较暗的发光）
+   - 50%（动画中间）：阴影 30px 模糊半径（较亮的发光）
+   - 整体效果：元素发光强度周期性脉动，模拟呼吸灯效果 */
 @keyframes glowPulse {
   0%, 100% { box-shadow: 0 0 10px var(--primary-glow); }
   50% { box-shadow: 0 0 30px var(--primary-glow); }
