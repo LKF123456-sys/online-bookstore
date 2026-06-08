@@ -1,0 +1,111 @@
+# ============================================================
+# 网关服务配置文件 (application.yml)
+# 这是Spring Boot的核心配置文件，用于配置网关的各种参数
+# ============================================================
+
+# --- 服务器配置 ---
+server:
+  port: 8080  # 网关服务监听的端口号，所有外部请求通过此端口进入微服务系统
+
+# --- Spring框架配置 ---
+spring:
+  config:
+    import: "optional:nacos:bookstore-gateway.yml"  # 从Nacos配置中心导入额外配置，optional表示如果Nacos不可用也不会报错
+  application:
+    name: bookstore-gateway  # 服务名称，注册到Nacos注册中心时使用，其他服务通过此名称发现网关
+  cloud:
+    # --- Nacos注册中心和配置中心配置 ---
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}  # Nacos服务发现地址，支持通过环境变量NACOS_SERVER_ADDR覆盖，默认为本机8848端口
+        namespace: ${NACOS_NAMESPACE:}  # Nacos命名空间，用于环境隔离（如dev/test/prod），支持通过环境变量覆盖，默认为空（public命名空间）
+        group: ${NACOS_GROUP:DEFAULT_GROUP}  # Nacos分组，默认为DEFAULT_GROUP，支持通过环境变量覆盖
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}  # Nacos配置中心地址，与服务发现地址一致
+        namespace: ${NACOS_NAMESPACE:}  # Nacos配置中心的命名空间
+        group: ${NACOS_GROUP:DEFAULT_GROUP}  # Nacos配置中心的分组
+        file-extension: yml  # 配置文件的扩展名，表示从Nacos读取yml格式的配置文件
+        import-check:
+          enabled: false  # 关闭配置导入检查，避免Nacos不可用时启动失败
+
+    # --- Spring Cloud Gateway路由配置 ---
+    gateway:
+      discovery:
+        locator:
+          enabled: true  # 开启服务发现的自动路由功能，可以根据服务名称自动生成路由规则
+          lower-case-service-id: true  # 将服务ID转为小写，避免大小写敏感问题
+
+      # --- 路由规则列表 ---
+      # 路由规则说明：当请求的URL路径匹配predicates中的模式时，网关会将请求转发到uri指定的服务
+      # lb:// 表示使用负载均衡（Load Balancer）方式访问服务，会从Nacos获取服务实例列表
+      routes:
+        # 用户服务路由 - 处理用户认证（登录/注册）和个人信息相关请求
+        - id: bookstore-user  # 路由的唯一标识
+          uri: lb://bookstore-user  # 目标服务地址，lb://表示通过负载均衡访问bookstore-user服务
+          predicates:  # 路由匹配条件（断言），满足条件的请求会被转发到此服务
+            - Path=/api/auth/**, /api/user/**, /admin/user/**  # 匹配以/api/auth/、/api/user/、/admin/user/开头的所有路径
+          filters:  # 路由过滤器，对请求进行处理
+            - StripPrefix=0  # 不去掉路径前缀（保留原始路径直接转发）
+
+        # 商品服务路由 - 处理商品查询、搜索、SKU、分类等相关请求
+        - id: bookstore-product  # 路由的唯一标识
+          uri: lb://bookstore-product  # 目标服务地址，通过负载均衡访问bookstore-product服务
+          predicates:
+            - Path=/api/product/**, /api/search/**, /api/sku/**, /api/category/**, /admin/product/**  # 匹配商品、搜索、SKU、分类相关的所有路径
+          filters:
+            - StripPrefix=0  # 不去掉路径前缀
+
+        # 订单服务路由 - 处理订单、购物车、支付、物流等相关请求
+        - id: bookstore-order  # 路由的唯一标识
+          uri: lb://bookstore-order  # 目标服务地址，通过负载均衡访问bookstore-order服务
+          predicates:
+            - Path=/api/order/**, /api/cart/**, /api/payment/**, /api/logistics/**, /admin/order/**  # 匹配订单、购物车、支付、物流相关的所有路径
+          filters:
+            - StripPrefix=0  # 不去掉路径前缀
+
+        # 消息服务路由 - 处理消息通知、WebSocket通信等相关请求
+        - id: bookstore-message  # 路由的唯一标识
+          uri: lb://bookstore-message  # 目标服务地址，通过负载均衡访问bookstore-message服务
+          predicates:
+            - Path=/api/message/**, /ws/**, /admin/message/**  # 匹配消息接口和WebSocket连接路径
+          filters:
+            - StripPrefix=0  # 不去掉路径前缀
+
+        # 营销服务路由 - 处理优惠券、评价、公告等相关请求
+        - id: bookstore-promotion  # 路由的唯一标识
+          uri: lb://bookstore-promotion  # 目标服务地址，通过负载均衡访问bookstore-promotion服务
+          predicates:
+            - Path=/api/coupon/**, /api/review/**, /api/announcement/**, /admin/coupon/**, /admin/review/**, /admin/announcement/**  # 匹配优惠券、评价、公告相关的所有路径
+          filters:
+            - StripPrefix=0  # 不去掉路径前缀
+
+        # 管理服务 - 静态资源路由 - 处理后台管理页面的图片、CSS、JS等静态文件
+        - id: bookstore-admin-static  # 路由的唯一标识
+          uri: lb://bookstore-admin  # 目标服务地址，静态资源也由管理服务提供
+          predicates:
+            - Path=/img/**, /css/**, /js/**, /favicon.svg, /static/**  # 匹配图片、样式表、JavaScript等静态资源路径
+          filters:
+            - StripPrefix=0  # 不去掉路径前缀
+
+        # 管理服务路由 - 处理后台管理系统的分类管理、仪表盘、日志等功能
+        - id: bookstore-admin  # 路由的唯一标识
+          uri: lb://bookstore-admin  # 目标服务地址，通过负载均衡访问bookstore-admin服务
+          predicates:
+            - Path=/admin/category/**, /admin/dashboard/**, /admin/log/**, /admin/**  # 匹配后台管理相关的所有路径
+          filters:
+            - StripPrefix=0  # 不去掉路径前缀
+
+# --- Actuator监控端点配置 ---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics  # 暴露的监控端点：健康检查、基本信息、性能指标
+  endpoint:
+    health:
+      show-details: always  # 健康检查端点总是显示详细信息，方便排查问题
+
+# --- 日志配置 ---
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG  # 将Spring Cloud Gateway的日志级别设为DEBUG，方便调试路由转发逻辑

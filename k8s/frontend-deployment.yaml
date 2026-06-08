@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookverse-frontend
+  labels:
+    app: bookverse-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bookverse-frontend
+  template:
+    metadata:
+      labels:
+        app: bookverse-frontend
+    spec:
+      containers:
+        - name: bookverse-frontend
+          image: bookverse/frontend:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

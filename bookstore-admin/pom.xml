@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maven项目对象模型（POM）配置文件，定义项目的依赖、构建方式等信息 -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion> <!-- POM模型版本，固定为4.0.0 -->
+
+    <!-- 父项目配置：继承父POM的依赖管理和公共配置 -->
+    <parent>
+        <groupId>com.bookstore</groupId> <!-- 父项目的组织ID -->
+        <artifactId>online-bookstore</artifactId> <!-- 父项目的构件ID（整个书店项目） -->
+        <version>1.0-SNAPSHOT</version> <!-- 父项目版本（SNAPSHOT表示开发版本） -->
+    </parent>
+
+    <!-- 当前模块信息 -->
+    <artifactId>bookstore-admin</artifactId> <!-- 本模块的构件ID -->
+    <name>bookstore-admin</name> <!-- 本模块的显示名称 -->
+    <description>管理服务 - 管理后台、日志、工作流</description> <!-- 模块描述 -->
+
+    <!-- 依赖列表 -->
+    <dependencies>
+        <!-- ======================== 公共模块 ======================== -->
+        <dependency> <!-- 引入公共模块（包含通用实体类、工具类等） -->
+            <groupId>com.bookstore</groupId>
+            <artifactId>bookstore-common</artifactId>
+        </dependency>
+
+        <!-- ======================== 微服务基础设施 ======================== -->
+        <dependency> <!-- Nacos服务发现：将本服务注册到Nacos注册中心，实现服务间调用 -->
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <dependency> <!-- Nacos配置中心：从Nacos读取远程配置文件 -->
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+
+        <dependency> <!-- Spring Cloud负载均衡器：使RestTemplate支持通过服务名调用（替代Ribbon） -->
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+
+        <dependency> <!-- OpenFeign：声明式HTTP客户端，简化微服务间调用 -->
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+
+        <!-- ======================== 数据库 ======================== -->
+        <dependency> <!-- MySQL数据库驱动，runtime表示只在运行时需要，编译时不需要 -->
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- ======================== JSP视图支持 ======================== -->
+        <dependency> <!-- 嵌入式Tomcat的JSP编译器，使Spring Boot支持JSP页面 -->
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-jasper</artifactId>
+        </dependency>
+
+        <dependency> <!-- JSTL（JSP标准标签库）API，提供<c:forEach>等标签支持 -->
+            <groupId>jakarta.servlet.jsp.jstl</groupId>
+            <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
+        </dependency>
+
+        <dependency> <!-- JSTL实现库，JSTL API的具体实现 -->
+            <groupId>org.glassfish.web</groupId>
+            <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+            <version>3.0.1</version>
+        </dependency>
+
+        <!-- ======================== 监控和文档 ======================== -->
+        <dependency> <!-- Spring Boot Actuator：提供健康检查、指标监控等生产级功能 -->
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency> <!-- Prometheus指标导出器：将应用指标暴露给Prometheus监控系统 -->
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <dependency> <!-- SpringDoc OpenAPI：自动生成Swagger风格的API文档 -->
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        </dependency>
+    </dependencies>
+
+    <!-- 构建配置 -->
+    <build>
+        <plugins>
+            <plugin> <!-- Spring Boot Maven插件：支持将项目打包为可执行的Fat JAR -->
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

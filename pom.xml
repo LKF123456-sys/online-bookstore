@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ============================================================
+     根项目 pom.xml — BookVerse 在线书店（父工程）
+     功能：
+       1. 作为 Maven 多模块项目的父工程（packaging=pom）
+       2. 统一管理所有子模块的依赖版本，避免版本冲突
+       3. 声明所有子模块（聚合构建）
+       4. 定义所有子模块公共的依赖（如 Lombok、测试框架）
+     子模块列表：
+       - bookstore-common    公共模块（实体类、DTO、VO、工具类）
+       - bookstore-gateway   API网关（路由转发、认证鉴权）
+       - bookstore-user      用户服务（注册、登录、个人信息）
+       - bookstore-product   商品服务（商品CRUD、搜索、分类）
+       - bookstore-order     订单服务（订单创建、购物车、支付）
+       - bookstore-message   消息服务（站内信、通知）
+       - bookstore-promotion 营销服务（优惠券、评价、公告）
+       - bookstore-admin     管理后台（前端页面 + 代理API）
+     ============================================================ -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <!-- POM 模型版本，固定为 4.0.0（Maven 2/3 使用此版本） -->
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- ========== 父工程继承配置 ==========
+         继承 spring-boot-starter-parent，获得以下能力：
+         1. 默认的编译/测试/打包插件配置
+         2. 依赖版本管理（Spring Boot 官方测试过的兼容版本组合）
+         3. 资源过滤、编码设置等默认配置
+         子模块无需再单独配置这些基础内容
+    -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>         <!-- 组织ID：Spring Boot 官方 -->
+        <artifactId>spring-boot-starter-parent</artifactId> <!-- 父工程构件ID -->
+        <version>3.2.5</version>                            <!-- Spring Boot 版本号 -->
+        <relativePath/>                                     <!-- 从 Maven 仓库查找父POM，不从本地路径 -->
+    </parent>
+
+    <!-- ========== 当前项目坐标 ==========
+         Maven 坐标三要素：groupId + artifactId + version 唯一标识一个项目
+    -->
+    <groupId>com.bookstore</groupId>            <!-- 组织ID：书店项目组 -->
+    <artifactId>online-bookstore</artifactId>   <!-- 构件ID：在线书店 -->
+    <version>1.0-SNAPSHOT</version>             <!-- 版本号：SNAPSHOT 表示开发中的快照版本 -->
+    <packaging>pom</packaging>                  <!-- 打包类型：pom 表示这是一个父工程/聚合工程 -->
+    <name>online-bookstore</name>               <!-- 项目显示名称 -->
+    <description>在线图书销售平台 - Spring Cloud微服务架构</description>  <!-- 项目描述 -->
+
+    <!-- ========== 子模块声明（聚合）==========
+         声明所有子模块后，执行 mvn install 时会自动构建所有子模块
+         这就是 Maven 的"聚合"功能
+    -->
+    <modules>
+        <module>bookstore-common</module>       <!-- 公共模块：被所有其他模块依赖 -->
+        <module>bookstore-gateway</module>      <!-- 网关模块：统一入口 -->
+        <module>bookstore-user</module>         <!-- 用户模块：用户认证 -->
+        <module>bookstore-product</module>      <!-- 商品模块：商品管理 -->
+        <module>bookstore-order</module>        <!-- 订单模块：订单和购物车 -->
+        <module>bookstore-message</module>      <!-- 消息模块：站内消息 -->
+        <module>bookstore-promotion</module>    <!-- 营销模块：优惠券、评价 -->
+        <module>bookstore-admin</module>        <!-- 管理模块：后台管理界面 -->
+    </modules>
+
+    <!-- ========== 全局版本属性 ==========
+         统一定义所有依赖的版本号，子模块引用时使用 ${属性名} 获取
+         好处：版本升级时只需修改此处，所有子模块自动生效
+    -->
+    <properties>
+        <java.version>21</java.version>                          <!-- Java 版本（编译目标） -->
+        <lombok.version>1.18.40</lombok.version>                 <!-- Lombok 版本（自动生成 getter/setter） -->
+        <spring-cloud.version>2023.0.1</spring-cloud.version>    <!-- Spring Cloud 版本（微服务框架） -->
+        <spring-cloud-alibaba.version>2023.0.1.0</spring-cloud-alibaba.version>  <!-- Spring Cloud Alibaba 版本（Nacos等） -->
+        <mybatis-plus.version>3.5.7</mybatis-plus.version>       <!-- MyBatis-Plus 版本（ORM框架增强版） -->
+        <jjwt.version>0.12.6</jjwt.version>                      <!-- JWT 库版本（Token 生成和验证） -->
+        <springdoc.version>2.6.0</springdoc.version>             <!-- SpringDoc 版本（API 文档自动生成） -->
+    </properties>
+
+    <!-- ========== 依赖版本管理（dependencyManagement）==========
+         这里只声明版本号，不实际引入依赖。
+         子模块在自己的 pom.xml 中引入时可以省略 version 标签，
+         自动使用这里统一管理的版本。
+         这是 Maven 多模块项目管理依赖版本的标准做法。
+    -->
+    <dependencyManagement>
+        <dependencies>
+
+            <!-- Spring Cloud 核心依赖（BOM）
+                 包含：Gateway网关、LoadBalancer负载均衡、OpenFeign远程调用等
+                 scope=import 表示导入这个 BOM 中的所有版本管理
+            -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud Alibaba 依赖（BOM）
+                 包含：Nacos注册中心和配置中心、Sentinel限流等
+            -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- MyBatis-Plus（ORM框架）
+                 MyBatis 的增强版，自动生成 CRUD SQL，减少重复代码
+                 适用于 Spring Boot 3.x（spring-boot3-starter）
+            -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <!-- JWT（JSON Web Token）库
+                 用于生成和验证用户登录令牌（Token）
+                 分为三个模块：api（接口）、impl（实现）、jackson（JSON序列化）
+            -->
+            <!-- JWT API：提供 Token 的创建和解析接口 -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <!-- JWT 实现：api 接口的具体实现 -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <!-- JWT Jackson：JWT 内部使用的 JSON 序列化/反序列化 -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+
+            <!-- SpringDoc OpenAPI（API 文档自动生成工具）
+                 自动扫描 @RestController，生成 OpenAPI 规范的 JSON 文档
+                 内置 Swagger UI，可在浏览器中交互式测试 API
+            -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+
+            <!-- 内部公共模块依赖
+                 bookstore-common 包含实体类、DTO、VO、工具类等
+                 被所有业务模块依赖，避免重复定义
+                 ${project.version} 引用当前项目的版本号（1.0-SNAPSHOT）
+            -->
+            <dependency>
+                <groupId>com.bookstore</groupId>
+                <artifactId>bookstore-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- ========== 全局公共依赖 ==========
+         这里的依赖会被所有子模块自动继承，无需重复声明
+    -->
+    <dependencies>
+
+        <!-- Lombok：代码简化工具
+             通过注解自动生成 getter/setter/构造函数/toString 等
+             @Data = getter + setter + toString + equals + hashCode
+             @NoArgsConstructor = 无参构造函数
+             @AllArgsConstructor = 全参构造函数
+             optional=true 表示此依赖不会传递给依赖本项目的其他项目
+        -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Spring Boot 测试框架
+             提供 @SpringBootTest、MockMvc 等测试工具
+             scope=test 表示只在测试时使用，不会打包到最终的 jar 中
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <!-- ========== 构建配置 ========== -->
+    <build>
+        <plugins>
+            <!-- Maven 编译插件
+                 配置 Java 编译器的参数
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>${java.version}</source>   <!-- 源代码兼容的 Java 版本 -->
+                    <target>${java.version}</target>   <!-- 编译目标 Java 版本 -->
+                    <encoding>UTF-8</encoding>          <!-- 源代码文件编码：UTF-8（支持中文注释） -->
+                    <!-- 注解处理器路径
+                         配置 Lombok 作为注解处理器，
+                         编译时 Lombok 会自动生成 getter/setter 等代码
+                    -->
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

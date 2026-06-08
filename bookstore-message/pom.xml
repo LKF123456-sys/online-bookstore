@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>  <!-- XML声明，指定版本1.0和UTF-8编码 -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"  <!-- Maven项目的命名空间，固定值 -->
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"  <!-- XML Schema实例命名空间，用于校验XML格式 -->
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">  <!-- 指定XML Schema文件的位置 -->
+    <modelVersion>4.0.0</modelVersion>  <!-- POM模型版本，固定为4.0.0 -->
+
+    <!-- ========== 父项目配置 ========== -->
+    <!-- 继承父项目的统一版本管理和依赖管理 -->
+    <parent>
+        <groupId>com.bookstore</groupId>  <!-- 父项目的组织ID -->
+        <artifactId>online-bookstore</artifactId>  <!-- 父项目的构件ID（项目名称） -->
+        <version>1.0-SNAPSHOT</version>  <!-- 父项目版本号，SNAPSHOT表示开发中的快照版本 -->
+    </parent>
+
+    <!-- ========== 当前项目信息 ========== -->
+    <artifactId>bookstore-message</artifactId>  <!-- 当前模块的构件ID，即消息服务模块 -->
+    <name>bookstore-message</name>  <!-- 项目显示名称 -->
+    <description>消息服务 - 消息、通知、WebSocket</description>  <!-- 项目描述，说明这是一个消息服务模块 -->
+
+    <!-- ========== 项目依赖 ========== -->
+    <dependencies>
+        <!-- 公共模块：包含通用的实体类、工具类、VO/DTO等 -->
+        <dependency>
+            <groupId>com.bookstore</groupId>  <!-- 组织ID，指向本项目的公共模块 -->
+            <artifactId>bookstore-common</artifactId>  <!-- 构件ID，公共模块的名称 -->
+        </dependency>
+
+        <!-- Nacos Discovery：服务注册与发现组件 -->
+        <!-- 将本服务注册到Nacos注册中心，让其他服务可以发现并调用本服务 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>  <!-- 阿里巴巴云组件的组织ID -->
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>  <!-- Nacos服务发现启动器 -->
+        </dependency>
+
+        <!-- Nacos Config：配置中心组件 -->
+        <!-- 从Nacos配置中心获取远程配置，实现配置的集中管理 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>  <!-- 阿里巴巴云组件的组织ID -->
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>  <!-- Nacos配置中心启动器 -->
+        </dependency>
+
+        <!-- Spring Cloud LoadBalancer：客户端负载均衡组件 -->
+        <!-- 在调用其他微服务时，自动在多个实例间进行负载均衡 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>  <!-- Spring Cloud组件的组织ID -->
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>  <!-- 负载均衡启动器 -->
+        </dependency>
+
+        <!-- OpenFeign：声明式HTTP客户端 -->
+        <!-- 通过接口声明的方式调用其他微服务的REST API，简化远程调用 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>  <!-- Spring Cloud组件的组织ID -->
+            <artifactId>spring-cloud-starter-openfeign</artifactId>  <!-- OpenFeign启动器 -->
+        </dependency>
+
+        <!-- MySQL：数据库驱动 -->
+        <!-- MySQL的JDBC驱动程序，用于连接MySQL数据库 -->
+        <dependency>
+            <groupId>com.mysql</groupId>  <!-- MySQL驱动的组织ID -->
+            <artifactId>mysql-connector-j</artifactId>  <!-- MySQL JDBC驱动（8.x版本的新命名） -->
+            <scope>runtime</scope>  <!-- 仅在运行时需要，编译时不参与 -->
+        </dependency>
+
+        <!-- WebSocket：实时通信组件 -->
+        <!-- 提供WebSocket支持，用于消息的实时推送功能 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>  <!-- Spring Boot组件的组织ID -->
+            <artifactId>spring-boot-starter-websocket</artifactId>  <!-- WebSocket启动器 -->
+        </dependency>
+
+        <!-- RabbitMQ：消息队列组件 -->
+        <!-- 用于异步消息处理，支持消息的可靠投递和削峰填谷 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>  <!-- Spring Boot组件的组织ID -->
+            <artifactId>spring-boot-starter-amqp</artifactId>  <!-- AMQP消息队列启动器（RabbitMQ使用AMQP协议） -->
+        </dependency>
+
+        <!-- Spring Boot Actuator：应用监控组件 -->
+        <!-- 提供健康检查、指标收集等运维监控端点 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>  <!-- Spring Boot组件的组织ID -->
+            <artifactId>spring-boot-starter-actuator</artifactId>  <!-- Actuator监控启动器 -->
+        </dependency>
+
+        <!-- Prometheus：指标导出组件 -->
+        <!-- 将应用指标数据导出为Prometheus格式，供Prometheus服务器采集和Grafana展示 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>  <!-- Micrometer指标框架的组织ID -->
+            <artifactId>micrometer-registry-prometheus</artifactId>  <!-- Prometheus指标注册中心 -->
+        </dependency>
+    </dependencies>
+
+    <!-- ========== 构建配置 ========== -->
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven插件：用于打包可执行的Spring Boot应用 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>  <!-- Spring Boot插件的组织ID -->
+                <artifactId>spring-boot-maven-plugin</artifactId>  <!-- Spring Boot Maven打包插件 -->
+            </plugin>
+        </plugins>
+    </build>
+</project>

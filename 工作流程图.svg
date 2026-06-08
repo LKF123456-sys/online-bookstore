@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+  <defs>
+    <linearGradient id="bgG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="800" height="500" fill="url(#bgG)"/>
+  
+  <text x="400" y="60" text-anchor="middle" fill="#f1f5f9" font-family="Arial" font-size="34" font-weight="bold">AI Agent 工作流程</text>
+  
+  <g transform="translate(50, 100)">
+    <rect width="700" height="40" rx="8" fill="#1e293b"/>
+    <text x="350" y="127" text-anchor="middle" fill="#94a3b8" font-family="Arial" font-size="16">用户需求输入</text>
+  </g>
+  
+  <g transform="translate(370, 155)">
+    <text x="0" y="0" text-anchor="middle" fill="#a5b4fc" font-family="Arial" font-size="30">↓</text>
+  </g>
+  
+  <g transform="translate(150, 180)">
+    <rect width="500" height="80" rx="12" fill="#4f46e5"/>
+    <text x="250" y="215" text-anchor="middle" fill="white" font-family="Arial" font-size="18" font-weight="bold">OpenClaw 任务拆解与规划</text>
+  </g>
+  
+  <g transform="translate(370, 270)">
+    <text x="0" y="0" text-anchor="middle" fill="#a5b4fc" font-family="Arial" font-size="30">↓</text>
+  </g>
+  
+  <g transform="translate(50, 300)">
+    <g>
+      <rect width="200" height="130" rx="12" fill="#10b981"/>
+      <text x="100" y="335" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">Claude Code</text>
+      <text x="100" y="365" text-anchor="middle" fill="white" font-family="Arial" font-size="12">代码生成</text>
+      <text x="100" y="390" text-anchor="middle" fill="white" font-family="Arial" font-size="12">语法优化</text>
+    </g>
+    
+    <g transform="translate(250, 0)">
+      <rect width="200" height="130" rx="12" fill="#f59e0b"/>
+      <text x="100" y="335" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">单元测试编写</text>
+      <text x="100" y="365" text-anchor="middle" fill="white" font-family="Arial" font-size="12">自动测试覆盖</text>
+    </g>
+    
+    <g transform="translate(500, 0)">
+      <rect width="200" height="130" rx="12" fill="#3b82f6"/>
+      <text x="100" y="335" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">多轮迭代优化</text>
+      <text x="100" y="365" text-anchor="middle" fill="white" font-family="Arial" font-size="12">代码优化</text>
+    </g>
+  </g>
+  
+  <g transform="translate(250, 450)">
+    <rect width="300" height="35" rx="8" fill="#1e293b"/>
+    <text x="150" y="475" text-anchor="middle" fill="#a5b4fc" font-family="Arial" font-size="14" font-weight="bold">最终优质代码输出 & 测试通过</text>
+  </g>
+</svg>

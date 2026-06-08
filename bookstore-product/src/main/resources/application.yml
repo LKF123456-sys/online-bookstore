@@ -1,0 +1,90 @@
+# ==================== 服务器配置 ====================
+server:
+  port: 8082  # 服务端口号，商品服务运行在8082端口
+
+# ==================== Spring核心配置 ====================
+spring:
+  config:
+    import: "optional:nacos:bookstore-product.yml"  # 从Nacos配置中心导入远程配置，optional表示Nacos不可用时不会报错
+  application:
+    name: bookstore-product  # 应用名称，注册到Nacos时使用，其他服务通过此名称来发现和调用本服务
+
+  # ==================== 数据源配置（MySQL数据库） ====================
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}  # 数据库连接地址，使用环境变量DB_URL，未设置时默认连接本地MySQL的bookstore数据库
+    username: ${DB_USERNAME:root}  # 数据库用户名，使用环境变量DB_USERNAME，默认为root
+    password: ${DB_PASSWORD:root}  # 数据库密码，使用环境变量DB_PASSWORD，默认为root
+    driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL驱动类名（MySQL 8.x版本的驱动）
+    hikari:
+      maximum-pool-size: 20  # HikariCP连接池最大连接数，同时最多保持20个数据库连接
+      minimum-idle: 5  # 连接池最小空闲连接数，即使没有请求也会保持5个空闲连接
+      idle-timeout: 300000  # 空闲连接超时时间（毫秒），空闲超过5分钟的连接会被回收
+      max-lifetime: 1200000  # 连接最大存活时间（毫秒），连接存活超过20分钟后会被关闭重建
+      connection-timeout: 30000  # 获取连接的超时时间（毫秒），超过30秒获取不到连接则抛异常
+
+  # ==================== Redis缓存配置 ====================
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}  # Redis服务器地址，使用环境变量，默认为localhost
+      port: ${REDIS_PORT:6379}  # Redis服务器端口，默认6379
+      password: ${REDIS_PASSWORD:}  # Redis密码，使用环境变量，默认为空（无密码）
+      database: 0  # 使用Redis的第0个数据库（Redis默认有16个数据库，编号0-15）
+      timeout: 3000ms  # Redis操作超时时间，超过3秒未响应则超时
+      lettuce:
+        pool:
+          max-active: 8  # Lettuce连接池最大活跃连接数
+          max-idle: 8  # 连接池最大空闲连接数
+          min-idle: 0  # 连接池最小空闲连接数（0表示空闲时可以全部释放）
+          max-wait: -1ms  # 获取连接的最大等待时间（-1表示无限等待）
+
+    # ==================== Elasticsearch搜索配置 ====================
+    elasticsearch:
+      uris: ${ES_URIS:http://localhost:9200}  # Elasticsearch服务器地址，默认连接本地9200端口
+      username: ${ES_USERNAME:}  # ES用户名（如果ES启用了安全认证）
+      password: ${ES_PASSWORD:}  # ES密码（如果ES启用了安全认证）
+      connection-timeout: 5000  # 连接ES的超时时间（毫秒），5秒内连不上则超时
+      socket-timeout: 30000  # ES请求的Socket超时时间（毫秒），复杂搜索可能耗时较长
+
+  # ==================== Nacos注册中心和配置中心 ====================
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}  # Nacos服务发现地址，用于服务注册与发现
+        namespace: ${NACOS_NAMESPACE:}  # Nacos命名空间，用于环境隔离（如dev、test、prod），默认为空（public命名空间）
+        group: ${NACOS_GROUP:DEFAULT_GROUP}  # Nacos分组，默认为DEFAULT_GROUP
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}  # Nacos配置中心地址，用于读取远程配置
+        namespace: ${NACOS_NAMESPACE:}  # 配置中心的命名空间
+        group: ${NACOS_GROUP:DEFAULT_GROUP}  # 配置中心的分组
+        file-extension: yml  # 远程配置文件的扩展名，Nacos中对应 bookstore-product.yml 文件
+        import-check:
+          enabled: false  # 关闭配置导入检查，避免Nacos配置文件不存在时报错
+
+# ==================== MyBatis-Plus配置 ====================
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true  # 开启驼峰命名映射，如数据库字段 user_name 自动映射到Java属性 userName
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # SQL日志输出到控制台，开发调试时可以看到执行的SQL语句
+  global-config:
+    db-config:
+      id-type: auto  # 主键生成策略为自增（使用数据库的AUTO_INCREMENT）
+      logic-delete-field: deleted  # 逻辑删除字段名，表中的 deleted 字段作为逻辑删除标志
+      logic-delete-value: 1  # 逻辑删除的值，deleted=1 表示已删除
+      logic-not-delete-value: 0  # 逻辑未删除的值，deleted=0 表示未删除
+  mapper-locations: classpath:mapper/*.xml  # Mapper XML文件的位置，MyBatis会扫描 classpath:mapper/ 目录下的所有XML文件
+
+# ==================== Actuator监控端点配置 ====================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus  # 暴露的监控端点：健康检查、应用信息、指标数据、Prometheus格式指标
+  endpoint:
+    health:
+      show-details: when-authorized  # 健康检查详情只在授权访问时显示（需要认证才能看到详细的健康信息）
+
+# ==================== 日志配置 ====================
+logging:
+  level:
+    com.bookstore: ${LOG_LEVEL:INFO}  # bookstore项目包的日志级别，可通过环境变量调整，默认INFO
+    org.springframework: WARN  # Spring框架的日志级别设为WARN，减少Spring内部日志输出

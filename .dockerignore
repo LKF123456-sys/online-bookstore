@@ -1,0 +1,12 @@
+target/
+.git/
+.github/
+.idea/
+*.iml
+logs/
+uploads/
+node_modules/
+*.md
+.dockerignore
+Dockerfile
+docker-compose.yml

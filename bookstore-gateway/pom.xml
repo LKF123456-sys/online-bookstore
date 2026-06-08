@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?> <!-- XML文件头，声明版本为1.0，编码为UTF-8 -->
+<!-- Maven项目根元素，包含项目的POM（Project Object Model）配置 -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion> <!-- POM模型版本，固定为4.0.0 -->
+
+    <!-- 父项目配置：继承父项目的依赖管理和配置，避免重复声明 -->
+    <parent>
+        <groupId>com.bookstore</groupId> <!-- 父项目的组织ID（公司/团队的域名倒写） -->
+        <artifactId>online-bookstore</artifactId> <!-- 父项目的项目ID -->
+        <version>1.0-SNAPSHOT</version> <!-- 父项目的版本号，SNAPSHOT表示开发中的快照版本 -->
+    </parent>
+
+    <artifactId>bookstore-gateway</artifactId> <!-- 当前项目的唯一标识符（模块名） -->
+    <name>bookstore-gateway</name> <!-- 项目的显示名称 -->
+    <description>API网关服务</description> <!-- 项目描述，说明这是API网关服务模块 -->
+
+    <!-- 项目依赖列表：声明此模块需要使用的第三方库 -->
+    <dependencies>
+
+        <!-- Spring Cloud Gateway：微服务网关框架 -->
+        <!-- 提供路由转发、过滤器、负载均衡等网关核心功能 -->
+        <!-- 用于构建API网关，将外部请求路由到对应的微服务 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId> <!-- Spring Cloud组织 -->
+            <artifactId>spring-cloud-starter-gateway</artifactId> <!-- Spring Cloud Gateway启动器 -->
+        </dependency>
+
+        <!-- Nacos Discovery：服务发现组件 -->
+        <!-- 使网关能够从Nacos注册中心发现其他微服务的地址 -->
+        <!-- 实现服务的自动注册与发现，无需硬编码服务地址 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId> <!-- 阿里巴巴Spring Cloud组织 -->
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId> <!-- Nacos服务发现启动器 -->
+        </dependency>
+
+        <!-- Nacos Config：配置中心组件 -->
+        <!-- 使网关能够从Nacos配置中心读取远程配置文件 -->
+        <!-- 实现配置的集中管理和动态刷新，无需重启服务即可更新配置 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId> <!-- 阿里巴巴Spring Cloud组织 -->
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId> <!-- Nacos配置中心启动器 -->
+        </dependency>
+
+        <!-- Spring Cloud LoadBalancer：客户端负载均衡组件 -->
+        <!-- 当一个微服务有多个实例时，自动在多个实例间分配请求 -->
+        <!-- 配合服务发现使用，确保请求均匀分配到各服务实例 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId> <!-- Spring Cloud组织 -->
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId> <!-- 负载均衡启动器 -->
+        </dependency>
+
+        <!-- Spring Boot Actuator：应用监控和管理组件 -->
+        <!-- 提供健康检查、性能指标、应用信息等监控端点 -->
+        <!-- 通过 /actuator/health 等URL可以查看服务运行状态 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId> <!-- Spring Boot组织 -->
+            <artifactId>spring-boot-starter-actuator</artifactId> <!-- Actuator监控启动器 -->
+        </dependency>
+
+    </dependencies>
+
+    <!-- 构建配置 -->
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven插件：用于将项目打包为可执行的JAR文件 -->
+            <!-- 打包后的JAR可以直接通过 java -jar 命令运行 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId> <!-- Spring Boot组织 -->
+                <artifactId>spring-boot-maven-plugin</artifactId> <!-- Spring Boot Maven打包插件 -->
+            </plugin>
+        </plugins>
+    </build>
+</project>

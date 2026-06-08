@@ -1,0 +1,125 @@
+<%-- ============================================================
+     api-docs.html — BookVerse API 文档页面
+     功能：使用 Swagger UI 展示项目所有 REST API 接口文档
+     说明：
+       - Swagger UI 是一个自动生成 API 文档的工具
+       - 它会读取后端的 OpenAPI 规范（JSON格式），自动渲染出交互式文档页面
+       - 用户可以在页面上直接测试 API 接口（Try It Out 功能）
+       - 本项目使用 springdoc-openapi 自动生成 OpenAPI 规范
+       - 通过配置两个 API 分组，将管理后台API和代理服务API分开展示
+     访问地址：http://localhost:8086/api-docs.html
+     ============================================================ --%>
+<!DOCTYPE html>
+<%-- 声明文档类型为 HTML5 --%>
+<html lang="zh-CN">
+<%-- html 根元素，lang="zh-CN" 表示页面语言为简体中文，有助于搜索引擎和屏幕阅读器 --%>
+<head>
+  <%-- ========== 页面头部：定义元信息、标题和样式 ========== --%>
+  <meta charset="UTF-8">
+  <%-- 设置字符编码为 UTF-8，支持中文等多语言字符显示 --%>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <%-- 设置视口宽度为设备宽度，初始缩放比例为1.0，确保移动端自适应 --%>
+  <title>BookVerse API 文档</title>
+  <%-- 页面标题，显示在浏览器标签页上 --%>
+
+  <%-- 引入 Swagger UI 的官方样式文件（从 unpkg CDN 加载最新版本） --%>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+  <%-- 引入项目自定义的 Swagger UI 样式，覆盖默认样式实现个性化外观 --%>
+  <link rel="stylesheet" href="/css/swagger-ui-custom.css">
+  <%-- 设置页面图标（favicon），SVG 格式的书本图标 --%>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <%-- ========== 页面主体 ========== --%>
+
+  <%-- Swagger UI 的挂载容器，Swagger UI 会自动在这个 div 中渲染 API 文档 --%>
+  <div id="swagger-ui"></div>
+
+  <%-- 引入 Swagger UI 的核心 JavaScript 库 --%>
+  <%-- swagger-ui-bundle.js：包含 Swagger UI 的核心渲染引擎 --%>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <%-- swagger-ui-standalone-preset.js：提供独立布局模式的预设配置 --%>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js" crossorigin></script>
+
+  <script>
+    // ========== Swagger UI 初始化配置 ==========
+    // 页面加载完成后执行初始化
+    window.onload = function() {
+      // 创建 SwaggerUIBundle 实例，传入配置对象
+      // SwaggerUIBundle 是 Swagger UI 的核心类，负责加载和渲染 API 文档
+      window.ui = SwaggerUIBundle({
+
+        // API 文档的 URL 列表（支持多分组展示）
+        // 每个分组对应一个 OpenAPI JSON 文档地址
+        // springdoc 会自动生成这些 JSON 文档
+        urls: [
+          {url: "/v3/api-docs/管理后台API", name: "管理后台 API"},
+          // 管理后台 API 分组：包含 PageController 等管理后台接口
+          {url: "/v3/api-docs/服务代理", name: "服务代理 API"}
+          // 服务代理 API 分组：包含 AuthProxyController 等代理转发接口
+        ],
+
+        // 默认显示的分组名称（优先展示管理后台API）
+        "urls.primaryName": "管理后台 API",
+
+        // DOM 元素选择器，指定 Swagger UI 渲染到哪个容器中
+        dom_id: '#swagger-ui',
+
+        // 深度链接：启用后 URL 中会包含当前展开的接口信息，方便分享特定接口链接
+        deepLinking: true,
+
+        // 显示请求耗时（毫秒），方便开发者了解接口响应速度
+        displayRequestDuration: true,
+
+        // 默认展开 Models（数据模型）的层级深度
+        // 1 = 展开第一层，0 = 完全折叠
+        defaultModelsExpandDepth: 1,
+
+        // 单个 Model 展开的深度
+        defaultModelExpandDepth: 1,
+
+        // 文档展开模式：
+        // "list" = 只展开接口列表（不展开详情），"full" = 全部展开，"none" = 全部折叠
+        docExpansion: "list",
+
+        // 启用过滤功能：顶部出现搜索框，可按关键词筛选接口
+        filter: true,
+
+        // 显示 OpenAPI 扩展字段
+        showExtensions: true,
+
+        // 显示 OpenAPI 通用扩展字段
+        showCommonExtensions: true,
+
+        // 代码高亮主题设置
+        syntaxHighlight: {
+          theme: "monokai"  // 使用 Monokai 暗色主题（类似 VS Code 深色主题）
+        },
+
+        // 启用 "Try It Out" 功能：允许用户在页面上直接发送 API 请求进行测试
+        tryItOutEnabled: true,
+
+        // ========== 插件和预设配置 ==========
+        // 预设（presets）：Swagger UI 的功能模块组合
+        presets: [
+          SwaggerUIBundle.presets.apis,
+          // apis 预设：提供 API 文档解析和渲染的基础功能
+          SwaggerUIStandalonePreset
+          // StandaloneLayout 预设：提供独立页面布局（带顶部栏）
+        ],
+
+        // 插件列表
+        plugins: [
+          SwaggerUIBundle.plugins.DownloadUrl
+          // DownloadUrl 插件：支持从指定 URL 下载 API 规范文档
+        ],
+
+        // 页面布局模式
+        // "StandaloneLayout" = 独立页面布局（有顶部导航栏）
+        // "BaseLayout" = 基础布局（只有文档内容，无顶部栏）
+        layout: "StandaloneLayout"
+      });
+    };
+  </script>
+</body>
+</html>

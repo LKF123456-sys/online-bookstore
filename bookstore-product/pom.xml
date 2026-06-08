@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>  <!-- XML声明，指定版本和编码格式 -->
+<!-- Maven项目对象模型（POM）文件
+     这是Maven项目的核心配置文件，定义了：
+       - 项目的坐标（groupId、artifactId、version）
+       - 父项目（继承自online-bookstore父工程）
+       - 项目依赖（需要引入的第三方库）
+       - 构建插件（编译、打包等工具）
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>  <!-- POM模型版本，固定为4.0.0 -->
+
+    <!-- 父项目配置：继承online-bookstore父工程，获取统一的依赖版本管理和公共配置 -->
+    <parent>
+        <groupId>com.bookstore</groupId>  <!-- 父项目的组织ID -->
+        <artifactId>online-bookstore</artifactId>  <!-- 父项目的模块ID -->
+        <version>1.0-SNAPSHOT</version>  <!-- 父项目的版本号，SNAPSHOT表示开发中的快照版本 -->
+    </parent>
+
+    <artifactId>bookstore-product</artifactId>  <!-- 本模块的唯一标识，Maven用它来定位和管理本项目 -->
+    <name>bookstore-product</name>  <!-- 项目的显示名称 -->
+    <description>商品服务 - 商品、分类、SKU、搜索</description>  <!-- 项目的描述信息 -->
+
+    <!-- ==================== 项目依赖 ==================== -->
+    <dependencies>
+        <!-- 公共模块：包含实体类、工具类、统一响应类等所有微服务共享的代码 -->
+        <dependency>
+            <groupId>com.bookstore</groupId>  <!-- 组织ID -->
+            <artifactId>bookstore-common</artifactId>  <!-- 公共模块的模块ID，版本由父工程统一管理 -->
+        </dependency>
+
+        <!-- Nacos服务发现：用于将本服务注册到Nacos注册中心，实现微服务之间的相互发现和调用 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>  <!-- 阿里巴巴云组织 -->
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>  <!-- Nacos服务发现组件 -->
+        </dependency>
+
+        <!-- Nacos配置中心：用于从Nacos读取远程配置，支持动态配置更新 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>  <!-- Nacos配置中心组件 -->
+        </dependency>
+
+        <!-- Spring Cloud LoadBalancer：客户端负载均衡器，调用其他服务时自动在多个实例间分配请求 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>  <!-- 负载均衡组件 -->
+        </dependency>
+
+        <!-- OpenFeign：声明式的HTTP客户端，通过接口+注解方式调用其他微服务，不用手写HTTP请求代码 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>  <!-- OpenFeign组件 -->
+        </dependency>
+
+        <!-- MySQL驱动：JDBC驱动程序，用于Java程序连接MySQL数据库 -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>  <!-- MySQL JDBC驱动（MySQL 8.x版本） -->
+            <scope>runtime</scope>  <!-- 只在运行时需要，编译时不需要 -->
+        </dependency>
+
+        <!-- Elasticsearch：Spring Data Elasticsearch，用于与ES搜索引擎交互，提供商品全文搜索功能 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>  <!-- ES数据访问组件 -->
+        </dependency>
+
+        <!-- Spring Boot Actuator：应用监控组件，提供健康检查、指标收集等运维监控功能 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>  <!-- Actuator监控组件 -->
+        </dependency>
+
+        <!-- Prometheus指标导出：将应用指标数据以Prometheus格式暴露，供Prometheus服务器采集和Grafana展示 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>  <!-- Prometheus指标注册组件 -->
+        </dependency>
+    </dependencies>
+
+    <!-- ==================== 构建配置 ==================== -->
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven插件：用于将项目打包为可执行的JAR文件
+                 打包后的JAR可以直接通过 java -jar 命令运行 -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>  <!-- Spring Boot打包插件 -->
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookverse-config
+data:
+  mysql-host: "mysql-service"
+  redis-host: "redis-service"
+  rabbitmq-host: "rabbitmq-service"
+  es-host: "elasticsearch-service"

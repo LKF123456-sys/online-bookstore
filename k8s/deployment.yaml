@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookverse-backend
+  labels:
+    app: bookverse-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bookverse-backend
+  template:
+    metadata:
+      labels:
+        app: bookverse-backend
+    spec:
+      containers:
+        - name: bookverse-backend
+          image: bookverse/backend:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            - name: MYSQL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: mysql-host
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: redis-host
+            - name: RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: rabbitmq-host
+            - name: ES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: es-host
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1024Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10

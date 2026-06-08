@@ -1,0 +1,280 @@
+/* ===== BookVerse Swagger UI 自定义主题 ===== */
+
+/* --- 顶部栏 --- */
+.swagger-ui .topbar {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
+    padding: 10px 0;
+}
+.swagger-ui .topbar .wrapper {
+    max-width: 1400px;
+}
+.swagger-ui .topbar a {
+    font-size: 18px !important;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+.swagger-ui .topbar .download-url-wrapper .select-label {
+    color: #fff;
+}
+.swagger-ui .topbar .download-url-wrapper .select-label span {
+    color: #a0aec0;
+}
+
+/* --- 信息区 --- */
+.swagger-ui .info {
+    margin: 30px 0;
+}
+.swagger-ui .info .title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2d3748;
+}
+.swagger-ui .info .description {
+    font-size: 14px;
+    line-height: 1.8;
+}
+.swagger-ui .info .description table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 12px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+.swagger-ui .info .description table th {
+    background: #667eea;
+    color: #fff;
+    padding: 10px 14px;
+    font-size: 13px;
+    text-align: left;
+}
+.swagger-ui .info .description table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+.swagger-ui .info .description table tr:nth-child(even) td {
+    background: #f7fafc;
+}
+.swagger-ui .info .description code {
+    background: #edf2f7;
+    color: #4a5568;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+/* --- 标签分组 --- */
+.swagger-ui .opblock-tag {
+    font-size: 16px !important;
+    font-weight: 600;
+    padding: 12px 0;
+}
+.swagger-ui .opblock-tag .nostyle span {
+    color: #2d3748;
+}
+.swagger-ui .opblock-tag small {
+    background: #667eea;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 11px;
+    color: #fff;
+    margin-left: 8px;
+}
+
+/* --- 操作块 --- */
+.swagger-ui .opblock {
+    border-radius: 10px !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04) !important;
+    margin-bottom: 12px !important;
+    border: none !important;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+.swagger-ui .opblock:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
+}
+.swagger-ui .opblock .opblock-summary {
+    padding: 12px 18px !important;
+    border: none !important;
+}
+.swagger-ui .opblock .opblock-summary-method {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    min-width: 70px !important;
+    text-align: center;
+    border-radius: 6px !important;
+    padding: 6px 0 !important;
+}
+/* GET green */
+.swagger-ui .opblock.opblock-get {
+    border-left: 4px solid #48bb78 !important;
+    background: #f0fff4;
+}
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+    background: #48bb78;
+}
+/* POST blue */
+.swagger-ui .opblock.opblock-post {
+    border-left: 4px solid #4299e1 !important;
+    background: #ebf8ff;
+}
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+    background: #4299e1;
+}
+/* PUT orange */
+.swagger-ui .opblock.opblock-put {
+    border-left: 4px solid #ed8936 !important;
+    background: #fffaf0;
+}
+.swagger-ui .opblock.opblock-put .opblock-summary-method {
+    background: #ed8936;
+}
+/* DELETE red */
+.swagger-ui .opblock.opblock-delete {
+    border-left: 4px solid #fc8181 !important;
+    background: #fff5f5;
+}
+.swagger-ui .opblock.opblock-delete .opblock-summary-method {
+    background: #fc8181;
+}
+
+/* --- 路径 --- */
+.swagger-ui .opblock .opblock-summary-path {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4a5568;
+}
+
+/* --- 描述 --- */
+.swagger-ui .opblock .opblock-summary-description {
+    font-size: 13px;
+    color: #718096;
+}
+
+/* --- 响应区 --- */
+.swagger-ui .responses-inner {
+    padding: 20px !important;
+}
+.swagger-ui .responses-inner h4 {
+    font-size: 15px;
+    font-weight: 600;
+}
+.swagger-ui table thead tr td, 
+.swagger-ui table thead tr th {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 10px 12px;
+}
+
+/* --- 模型区 --- */
+.swagger-ui .model-box {
+    border-radius: 8px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+}
+.swagger-ui .model-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* --- 按钮 --- */
+.swagger-ui .btn {
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    padding: 6px 16px !important;
+    transition: all 0.2s;
+}
+.swagger-ui .btn.execute {
+    background: #667eea !important;
+    border-color: #667eea !important;
+}
+.swagger-ui .btn.execute:hover {
+    background: #5a67d8 !important;
+}
+.swagger-ui .btn.authorize {
+    background: #48bb78 !important;
+    border-color: #48bb78 !important;
+}
+.swagger-ui .btn.authorize:hover {
+    background: #38a169 !important;
+}
+.swagger-ui .btn.cancel {
+    color: #e53e3e !important;
+    border-color: #e53e3e !important;
+}
+
+/* --- 输入框 --- */
+.swagger-ui input[type="text"],
+.swagger-ui textarea {
+    border-radius: 6px !important;
+    border: 1px solid #e2e8f0 !important;
+    padding: 8px 12px !important;
+    font-size: 13px;
+    transition: border-color 0.2s;
+}
+.swagger-ui input[type="text"]:focus,
+.swagger-ui textarea:focus {
+    border-color: #667eea !important;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(102,126,234,0.15) !important;
+}
+
+/* --- 响应代码 --- */
+.swagger-ui .response-col_status {
+    font-weight: 600;
+    font-size: 13px;
+}
+.swagger-ui .response-col_description {
+    font-size: 13px;
+    color: #4a5568;
+}
+
+/* --- 底部 --- */
+.swagger-ui .info .base-url {
+    font-size: 12px;
+    color: #a0aec0;
+}
+
+/* --- 滚动条 --- */
+.swagger-ui ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.swagger-ui ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+.swagger-ui ::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+.swagger-ui ::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* --- 响应示例 --- */
+.swagger-ui .microlight {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    padding: 16px !important;
+    background: #1a202c !important;
+}
+
+/* --- 参数表格 --- */
+.swagger-ui .parameters-col_name {
+    font-weight: 600;
+    font-size: 13px;
+}
+.swagger-ui .parameter__name {
+    font-weight: 600;
+    font-size: 13px;
+}
+.swagger-ui .parameter__type {
+    font-size: 11px;
+    color: #718096;
+}

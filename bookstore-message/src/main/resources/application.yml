@@ -1,0 +1,102 @@
+# ==================== 消息服务配置文件 ====================
+# 这是消息服务模块（bookstore-message）的Spring Boot配置文件
+# 配置项包括：端口、数据库、Redis、RabbitMQ、Nacos、MyBatis-Plus等
+
+# ========== 服务器配置 ==========
+server:
+  port: 8087  # 服务端口号，消息服务监听8087端口
+
+# ========== Spring主配置 ==========
+spring:
+  config:
+    import: "optional:nacos:bookstore-message.yml"  # 从Nacos配置中心导入远程配置，optional表示Nacos不可用时不影响启动
+  application:
+    name: bookstore-message  # 应用名称，用于在Nacos注册中心中标识本服务
+
+  # ========== 数据库配置 ==========
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}  # 数据库连接URL，${DB_URL:...}表示优先读取环境变量DB_URL，否则使用默认值；参数说明：UTF-8编码、上海时区、禁用SSL、允许公钥获取
+    username: ${DB_USERNAME:root}  # 数据库用户名，优先读取环境变量DB_USERNAME，默认为root
+    password: ${DB_PASSWORD:root}  # 数据库密码，优先读取环境变量DB_PASSWORD，默认为root
+    driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL驱动类名，使用MySQL 8.x的JDBC驱动
+    hikari:  # HikariCP数据库连接池配置（高性能连接池）
+      maximum-pool-size: 20  # 连接池最大连接数，最多同时保持20个数据库连接
+      minimum-idle: 5  # 连接池最小空闲连接数，最少保持5个空闲连接
+      idle-timeout: 300000  # 空闲连接超时时间（毫秒），空闲超过5分钟的连接会被回收
+      max-lifetime: 1200000  # 连接最大存活时间（毫秒），连接使用超过20分钟后会被回收重建
+      connection-timeout: 30000  # 获取连接的超时时间（毫秒），超过30秒获取不到连接则抛出异常
+
+  # ========== Redis配置 ==========
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}  # Redis服务器地址，优先读取环境变量REDIS_HOST，默认为localhost
+      port: ${REDIS_PORT:6379}  # Redis服务器端口，默认6379
+      password: ${REDIS_PASSWORD:}  # Redis密码，为空表示无密码
+      database: 0  # 使用Redis的第0个数据库（Redis默认有16个数据库，编号0-15）
+      timeout: 3000ms  # Redis操作超时时间，超过3秒未响应则超时
+      lettuce:  # Lettuce是Spring Boot默认的Redis客户端（基于Netty的高性能客户端）
+        pool:
+          max-active: 8  # 连接池最大活跃连接数
+          max-idle: 8  # 连接池最大空闲连接数
+          min-idle: 0  # 连接池最小空闲连接数
+          max-wait: -1ms  # 从连接池获取连接的最大等待时间，-1表示无限等待
+
+  # ========== RabbitMQ消息队列配置 ==========
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}  # RabbitMQ服务器地址，优先读取环境变量，默认为localhost
+    port: ${RABBITMQ_PORT:5672}  # RabbitMQ端口，默认5672（AMQP协议端口）
+    username: ${RABBITMQ_USERNAME:guest}  # RabbitMQ用户名，默认guest
+    password: ${RABBITMQ_PASSWORD:guest}  # RabbitMQ密码，默认guest
+    virtual-host: /  # RabbitMQ虚拟主机，默认为根路径"/"
+    listener:  # 消息监听器配置
+      simple:
+        acknowledge-mode: manual  # 消息确认模式为手动确认，需要在代码中手动ACK，确保消息不丢失
+        prefetch: 10  # 预取消息数量，每次从队列最多取10条消息，避免消费者被大量消息压垮
+        retry:  # 消息消费失败重试配置
+          enabled: true  # 启用重试机制
+          max-attempts: 3  # 最大重试次数为3次
+          initial-interval: 1000  # 首次重试间隔为1000毫秒（1秒）
+
+  # ========== Nacos服务注册与配置中心 ==========
+  cloud:
+    nacos:
+      discovery:  # Nacos服务发现配置
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}  # Nacos服务器地址，默认localhost:8848
+        namespace: ${NACOS_NAMESPACE:}  # Nacos命名空间，用于环境隔离（如dev/test/prod）
+        group: ${NACOS_GROUP:DEFAULT_GROUP}  # Nacos分组，默认DEFAULT_GROUP
+      config:  # Nacos配置中心配置
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}  # Nacos配置中心地址
+        namespace: ${NACOS_NAMESPACE:}  # 命名空间
+        group: ${NACOS_GROUP:DEFAULT_GROUP}  # 分组
+        file-extension: yml  # 远程配置文件的扩展名为yml
+        import-check:
+          enabled: false  # 禁用导入检查，避免配置不存在时启动失败
+
+# ========== MyBatis-Plus配置 ==========
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true  # 开启下划线转驼峰命名映射，如数据库字段user_id自动映射到Java属性userId
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # SQL日志输出到控制台，开发调试用，生产环境建议关闭
+  global-config:
+    db-config:
+      id-type: auto  # 主键生成策略为数据库自增（AUTO_INCREMENT）
+      logic-delete-field: deleted  # 逻辑删除字段名为deleted
+      logic-delete-value: 1  # 逻辑删除的值为1（表示已删除）
+      logic-not-delete-value: 0  # 逻辑未删除的值为0（表示正常）
+  mapper-locations: classpath:mapper/*.xml  # Mapper XML文件的位置，MyBatis会扫描classpath下mapper目录中的所有XML文件
+
+# ========== Actuator监控端点配置 ==========
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus  # 暴露的监控端点：健康检查、应用信息、指标数据、Prometheus格式指标
+  endpoint:
+    health:
+      show-details: when-authorized  # 健康检查详情仅在授权时显示，保护敏感的健康信息
+
+# ========== 日志配置 ==========
+logging:
+  level:
+    com.bookstore: ${LOG_LEVEL:INFO}  # bookstore项目的日志级别，默认INFO，可通过环境变量LOG_LEVEL调整
+    org.springframework: WARN  # Spring框架日志级别设为WARN，减少Spring内部日志输出
