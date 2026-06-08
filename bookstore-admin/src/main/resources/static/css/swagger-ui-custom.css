@@ -1,280 +1,879 @@
-/* ===== BookVerse Swagger UI 自定义主题 ===== */
+/* ================================================================
+   BookVerse Swagger UI — CYBERPUNK / TECH THEME
+   赛博朋克未来科技风 · 霓虹光效 · 深色背景 · 玻璃质感
+   ================================================================ */
 
-/* --- 顶部栏 --- */
+/* ========== 全局 CSS 变量定义 ========== */
+:root {
+    /* 主色调 */
+    --neon-cyan: #00f0ff;
+    --neon-magenta: #ff00ff;
+    --neon-green: #00ff88;
+    --neon-yellow: #ffe600;
+    --neon-orange: #ff6b35;
+    --neon-red: #ff3366;
+    --neon-blue: #4488ff;
+    --neon-purple: #9945ff;
+    /* 背景色 */
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #111118;
+    --bg-card: rgba(16, 16, 28, 0.85);
+    --bg-card-hover: rgba(24, 24, 40, 0.95);
+    --bg-input: rgba(0, 0, 0, 0.4);
+    /* 文字色 */
+    --text-primary: #e0e0f0;
+    --text-secondary: #8899bb;
+    --text-muted: #556688;
+    /* 边框/分割线 */
+    --border: rgba(0, 240, 255, 0.12);
+    --border-glow: rgba(0, 240, 255, 0.3);
+    /* 阴影/发光 */
+    --glow-cyan: 0 0 15px rgba(0, 240, 255, 0.25), 0 0 40px rgba(0, 240, 255, 0.08);
+    --glow-magenta: 0 0 15px rgba(255, 0, 255, 0.25), 0 0 40px rgba(255, 0, 255, 0.08);
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5);
+    --shadow-hover: 0 8px 40px rgba(0, 0, 0, 0.6), var(--glow-cyan);
+    /* 字体 */
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* 圆角 */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    /* 过渡 */
+    --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ========== 页面整体背景 ========== */
+.swagger-ui {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+}
+
+/* 网格线背景动画 */
+.swagger-ui::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.swagger-ui .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1500px;
+}
+
+/* 扫描线效果 */
+body {
+    background: var(--bg-primary);
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.03) 2px,
+        rgba(0, 0, 0, 0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* ========== 顶部导航栏 ========== */
 .swagger-ui .topbar {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    box-shadow: 0 2px 20px rgba(0,0,0,0.3);
-    padding: 10px 0;
-}
-.swagger-ui .topbar .wrapper {
-    max-width: 1400px;
-}
-.swagger-ui .topbar a {
-    font-size: 18px !important;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-}
-.swagger-ui .topbar .download-url-wrapper .select-label {
-    color: #fff;
-}
-.swagger-ui .topbar .download-url-wrapper .select-label span {
-    color: #a0aec0;
+    background: linear-gradient(135deg, #0a0a1a 0%, #0d1028 40%, #0a0a1a 100%);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 30px rgba(0, 240, 255, 0.1);
+    padding: 12px 0;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    backdrop-filter: blur(20px);
 }
 
-/* --- 信息区 --- */
+.swagger-ui .topbar .wrapper {
+    max-width: 1500px;
+}
+
+.swagger-ui .topbar a {
+    font-size: 20px !important;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-decoration: none;
+    background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 8px var(--neon-cyan));
+}
+
+.swagger-ui .topbar .download-url-wrapper {
+    display: flex;
+    align-items: center;
+}
+
+.swagger-ui .topbar .download-url-wrapper .select-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.swagger-ui .topbar .download-url-wrapper .select-label span {
+    color: var(--neon-cyan);
+    font-weight: 600;
+}
+
+.swagger-ui .topbar .download-url-input {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    color: var(--text-primary) !important;
+    padding: 8px 16px !important;
+    font-family: var(--font-mono) !important;
+    font-size: 12px !important;
+    transition: var(--transition);
+    width: 280px;
+}
+
+.swagger-ui .topbar .download-url-input:focus {
+    border-color: var(--neon-cyan) !important;
+    box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.15), var(--glow-cyan) !important;
+}
+
+.swagger-ui .topbar .download-url-button {
+    background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple)) !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    padding: 8px 20px !important;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--glow-cyan);
+}
+
+.swagger-ui .topbar .download-url-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.4), 0 0 50px rgba(0, 240, 255, 0.15);
+}
+
+/* ========== API 基本信息区 ========== */
 .swagger-ui .info {
-    margin: 30px 0;
+    margin: 40px 0;
+    padding: 36px 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
 }
+
+/* 卡片顶部发光边 */
+.swagger-ui .info::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-magenta), transparent);
+    animation: scanline 3s ease-in-out infinite;
+}
+
+@keyframes scanline {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
 .swagger-ui .info .title {
-    font-size: 28px;
-    font-weight: 700;
-    color: #2d3748;
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, var(--neon-cyan), #fff, var(--neon-magenta));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 6px var(--neon-cyan));
 }
+
 .swagger-ui .info .description {
     font-size: 14px;
-    line-height: 1.8;
+    line-height: 1.9;
+    color: var(--text-secondary);
+    margin-top: 20px;
 }
+
+.swagger-ui .info .description h2 {
+    color: var(--neon-cyan);
+    font-size: 18px;
+    margin: 24px 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.5px;
+}
+
+/* 描述区域中的表格 */
 .swagger-ui .info .description table {
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     width: 100%;
-    margin: 12px 0;
-    border-radius: 8px;
+    margin: 16px 0;
+    border-radius: var(--radius-md);
     overflow: hidden;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
 }
+
+.swagger-ui .info .description table thead {
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.15), rgba(153, 69, 255, 0.15));
+}
+
 .swagger-ui .info .description table th {
-    background: #667eea;
-    color: #fff;
-    padding: 10px 14px;
-    font-size: 13px;
-    text-align: left;
-}
-.swagger-ui .info .description table td {
-    padding: 10px 14px;
-    border-bottom: 1px solid #e2e8f0;
-    font-size: 13px;
-}
-.swagger-ui .info .description table tr:nth-child(even) td {
-    background: #f7fafc;
-}
-.swagger-ui .info .description code {
-    background: #edf2f7;
-    color: #4a5568;
-    padding: 2px 6px;
-    border-radius: 4px;
+    color: var(--neon-cyan);
+    padding: 12px 16px;
     font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
 }
 
-/* --- 标签分组 --- */
+.swagger-ui .info .description table td {
+    padding: 11px 16px;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.06);
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: rgba(10, 10, 15, 0.5);
+}
+
+.swagger-ui .info .description table tr:last-child td {
+    border-bottom: none;
+}
+
+.swagger-ui .info .description table tr:hover td {
+    background: rgba(0, 240, 255, 0.04);
+}
+
+/* 代码块 */
+.swagger-ui .info .description code {
+    background: rgba(0, 240, 255, 0.08);
+    color: var(--neon-cyan);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    border: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+/* 描述中的 JSON 代码块 */
+.swagger-ui .info .description pre {
+    background: #0d0d1a !important;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    overflow-x: auto;
+}
+
+/* ========== 标签分组区域 ========== */
 .swagger-ui .opblock-tag {
-    font-size: 16px !important;
-    font-weight: 600;
-    padding: 12px 0;
-}
-.swagger-ui .opblock-tag .nostyle span {
-    color: #2d3748;
-}
-.swagger-ui .opblock-tag small {
-    background: #667eea;
-    border-radius: 12px;
-    padding: 2px 10px;
-    font-size: 11px;
-    color: #fff;
-    margin-left: 8px;
+    font-size: 17px !important;
+    font-weight: 700;
+    padding: 16px 0;
+    border-bottom: none;
+    color: var(--text-primary);
 }
 
-/* --- 操作块 --- */
+.swagger-ui .opblock-tag:hover {
+    background: transparent;
+}
+
+.swagger-ui .opblock-tag .nostyle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.swagger-ui .opblock-tag .nostyle span {
+    color: var(--text-primary);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+/* 分组下箭头 */
+.swagger-ui .opblock-tag .arrow {
+    fill: var(--neon-cyan);
+}
+
+/* 接口数量标签 */
+.swagger-ui .opblock-tag small {
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(153, 69, 255, 0.2));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 11px;
+    color: var(--neon-cyan);
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+/* ========== 操作块（接口卡片） ========== */
 .swagger-ui .opblock {
-    border-radius: 10px !important;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.04) !important;
-    margin-bottom: 12px !important;
-    border: none !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-card) !important;
+    margin-bottom: 16px !important;
+    border: 1px solid var(--border) !important;
+    background: var(--bg-card) !important;
+    backdrop-filter: blur(10px);
     overflow: hidden;
-    transition: box-shadow 0.2s;
+    transition: all var(--transition);
+    position: relative;
 }
+
 .swagger-ui .opblock:hover {
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1) !important;
+    box-shadow: var(--shadow-hover) !important;
+    border-color: var(--border-glow) !important;
+    transform: translateY(-2px);
 }
+
 .swagger-ui .opblock .opblock-summary {
-    padding: 12px 18px !important;
+    padding: 14px 22px !important;
     border: none !important;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
 }
+
+/* HTTP 方法标签 */
 .swagger-ui .opblock .opblock-summary-method {
-    font-size: 13px !important;
-    font-weight: 700 !important;
-    min-width: 70px !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    min-width: 72px !important;
     text-align: center;
-    border-radius: 6px !important;
-    padding: 6px 0 !important;
+    border-radius: 5px !important;
+    padding: 7px 0 !important;
+    letter-spacing: 0.5px;
+    font-family: var(--font-mono);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
-/* GET green */
+
+/* GET — 青色霓虹 */
 .swagger-ui .opblock.opblock-get {
-    border-left: 4px solid #48bb78 !important;
-    background: #f0fff4;
+    border-left: 3px solid var(--neon-cyan) !important;
+    background: rgba(0, 240, 255, 0.02);
 }
 .swagger-ui .opblock.opblock-get .opblock-summary-method {
-    background: #48bb78;
+    background: linear-gradient(135deg, #00c9e5, var(--neon-cyan));
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
 }
-/* POST blue */
+
+/* POST — 绿色霓虹 */
 .swagger-ui .opblock.opblock-post {
-    border-left: 4px solid #4299e1 !important;
-    background: #ebf8ff;
+    border-left: 3px solid var(--neon-green) !important;
+    background: rgba(0, 255, 136, 0.02);
 }
 .swagger-ui .opblock.opblock-post .opblock-summary-method {
-    background: #4299e1;
+    background: linear-gradient(135deg, #00cc6a, var(--neon-green));
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
 }
-/* PUT orange */
+
+/* PUT — 橙色霓虹 */
 .swagger-ui .opblock.opblock-put {
-    border-left: 4px solid #ed8936 !important;
-    background: #fffaf0;
+    border-left: 3px solid var(--neon-orange) !important;
+    background: rgba(255, 107, 53, 0.02);
 }
 .swagger-ui .opblock.opblock-put .opblock-summary-method {
-    background: #ed8936;
+    background: linear-gradient(135deg, #e55d20, var(--neon-orange));
+    box-shadow: 0 0 12px rgba(255, 107, 53, 0.3);
 }
-/* DELETE red */
+
+/* DELETE — 红色霓虹 */
 .swagger-ui .opblock.opblock-delete {
-    border-left: 4px solid #fc8181 !important;
-    background: #fff5f5;
+    border-left: 3px solid var(--neon-red) !important;
+    background: rgba(255, 51, 102, 0.02);
 }
 .swagger-ui .opblock.opblock-delete .opblock-summary-method {
-    background: #fc8181;
+    background: linear-gradient(135deg, #e62e4e, var(--neon-red));
+    box-shadow: 0 0 12px rgba(255, 51, 102, 0.3);
 }
 
-/* --- 路径 --- */
+/* PATCH — 紫色 */
+.swagger-ui .opblock.opblock-patch {
+    border-left: 3px solid var(--neon-purple) !important;
+}
+.swagger-ui .opblock.opblock-patch .opblock-summary-method {
+    background: linear-gradient(135deg, #7733ee, var(--neon-purple));
+    box-shadow: 0 0 12px rgba(153, 69, 255, 0.3);
+}
+
+/* --- 路径文字 --- */
 .swagger-ui .opblock .opblock-summary-path {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-family: var(--font-mono);
     font-size: 14px;
     font-weight: 500;
-    color: #4a5568;
+    color: var(--text-primary);
+    flex: 1 1 auto;
+    padding: 0 12px;
 }
 
-/* --- 描述 --- */
+.swagger-ui .opblock .opblock-summary-path a {
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.swagger-ui .opblock .opblock-summary-path__deprecated {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+/* --- 接口描述 --- */
 .swagger-ui .opblock .opblock-summary-description {
     font-size: 13px;
-    color: #718096;
+    color: var(--text-secondary);
+    font-style: italic;
 }
 
-/* --- 响应区 --- */
-.swagger-ui .responses-inner {
+/* --- 锁图标（认证） --- */
+.swagger-ui .opblock .authorization__btn .unlocked,
+.swagger-ui .opblock .authorization__btn .locked {
+    fill: var(--neon-cyan);
+}
+
+/* ========== 展开的请求/响应区域 ========== */
+.swagger-ui .opblock-body {
+    border-top: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.swagger-ui .opblock-body .opblock-section h4,
+.swagger-ui .opblock-body .opblock-section-header h4 {
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+/* 请求体 Tab */
+.swagger-ui .opblock-section-header {
+    background: rgba(0, 0, 0, 0.25);
+    border-bottom: 1px solid var(--border);
+}
+
+.swagger-ui .tab {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.swagger-ui .tab.active {
+    color: var(--neon-cyan);
+    border-bottom-color: var(--neon-cyan);
+}
+
+.swagger-ui .tab:hover {
+    color: var(--text-primary);
+}
+
+/* ========== 参数表格 ========== */
+.swagger-ui .parameters-container {
     padding: 20px !important;
 }
-.swagger-ui .responses-inner h4 {
-    font-size: 15px;
-    font-weight: 600;
-}
-.swagger-ui table thead tr td, 
-.swagger-ui table thead tr th {
-    font-size: 12px;
-    font-weight: 600;
-    color: #4a5568;
-    border-bottom: 2px solid #e2e8f0;
-    padding: 10px 12px;
-}
 
-/* --- 模型区 --- */
-.swagger-ui .model-box {
-    border-radius: 8px;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
-}
-.swagger-ui .model-title {
-    font-size: 14px;
-    font-weight: 600;
-}
-
-/* --- 按钮 --- */
-.swagger-ui .btn {
-    border-radius: 6px !important;
-    font-weight: 600 !important;
-    font-size: 12px !important;
-    padding: 6px 16px !important;
-    transition: all 0.2s;
-}
-.swagger-ui .btn.execute {
-    background: #667eea !important;
-    border-color: #667eea !important;
-}
-.swagger-ui .btn.execute:hover {
-    background: #5a67d8 !important;
-}
-.swagger-ui .btn.authorize {
-    background: #48bb78 !important;
-    border-color: #48bb78 !important;
-}
-.swagger-ui .btn.authorize:hover {
-    background: #38a169 !important;
-}
-.swagger-ui .btn.cancel {
-    color: #e53e3e !important;
-    border-color: #e53e3e !important;
-}
-
-/* --- 输入框 --- */
-.swagger-ui input[type="text"],
-.swagger-ui textarea {
-    border-radius: 6px !important;
-    border: 1px solid #e2e8f0 !important;
-    padding: 8px 12px !important;
-    font-size: 13px;
-    transition: border-color 0.2s;
-}
-.swagger-ui input[type="text"]:focus,
-.swagger-ui textarea:focus {
-    border-color: #667eea !important;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(102,126,234,0.15) !important;
-}
-
-/* --- 响应代码 --- */
-.swagger-ui .response-col_status {
-    font-weight: 600;
-    font-size: 13px;
-}
-.swagger-ui .response-col_description {
-    font-size: 13px;
-    color: #4a5568;
-}
-
-/* --- 底部 --- */
-.swagger-ui .info .base-url {
-    font-size: 12px;
-    color: #a0aec0;
-}
-
-/* --- 滚动条 --- */
-.swagger-ui ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-.swagger-ui ::-webkit-scrollbar-track {
-    background: #f1f5f9;
-}
-.swagger-ui ::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
-    border-radius: 3px;
-}
-.swagger-ui ::-webkit-scrollbar-thumb:hover {
-    background: #a0aec0;
-}
-
-/* --- 响应示例 --- */
-.swagger-ui .microlight {
-    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace !important;
-    font-size: 13px !important;
-    border-radius: 8px !important;
-    padding: 16px !important;
-    background: #1a202c !important;
-}
-
-/* --- 参数表格 --- */
 .swagger-ui .parameters-col_name {
     font-weight: 600;
     font-size: 13px;
+    color: var(--text-primary);
 }
+
 .swagger-ui .parameter__name {
     font-weight: 600;
     font-size: 13px;
+    color: var(--text-primary);
 }
+
+.swagger-ui .parameter__name.required {
+    color: var(--neon-red);
+}
+
+.swagger-ui .parameter__name.required::after {
+    color: var(--neon-red);
+    font-weight: 700;
+}
+
 .swagger-ui .parameter__type {
     font-size: 11px;
-    color: #718096;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.swagger-ui .parameter__in {
+    font-size: 11px;
+    color: var(--neon-cyan);
+    font-family: var(--font-mono);
+    font-weight: 600;
+}
+
+/* ========== 表格通用样式 ========== */
+.swagger-ui table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+
+.swagger-ui table thead tr td,
+.swagger-ui table thead tr th {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.swagger-ui table tbody tr td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(0, 240, 255, 0.05);
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.swagger-ui table tbody tr:hover td {
+    background: rgba(0, 240, 255, 0.03);
+}
+
+/* ========== 响应码 ========== */
+.swagger-ui .responses-inner {
+    padding: 24px !important;
+}
+
+.swagger-ui .responses-inner h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.swagger-ui .response-col_status {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.swagger-ui .response-col_description {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* 响应状态码颜色强化 */
+.swagger-ui .response-col_status .response-undocumented {
+    color: var(--text-muted);
+}
+
+/* ========== 代码/JSON 显示区 ========== */
+.swagger-ui .microlight {
+    font-family: var(--font-mono) !important;
+    font-size: 13px !important;
+    border-radius: var(--radius-md) !important;
+    padding: 20px !important;
+    background: #0a0a14 !important;
+    border: 1px solid var(--border) !important;
+    line-height: 1.6;
+}
+
+.swagger-ui .highlight-code {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+/* ========== 输入框/文本域 ========== */
+.swagger-ui input[type="text"],
+.swagger-ui input[type="search"],
+.swagger-ui textarea,
+.swagger-ui select {
+    border-radius: var(--radius-sm) !important;
+    border: 1px solid var(--border) !important;
+    background: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+    padding: 10px 14px !important;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    transition: all var(--transition);
+}
+
+.swagger-ui input[type="text"]:focus,
+.swagger-ui textarea:focus,
+.swagger-ui select:focus {
+    border-color: var(--neon-cyan) !important;
+    box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1), 0 0 12px rgba(0, 240, 255, 0.1) !important;
+    outline: none;
+}
+
+.swagger-ui select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' stroke='%2300f0ff' stroke-width='1.5' fill='none'/></svg>") !important;
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px !important;
+}
+
+/* ========== 按钮统一样式 ========== */
+.swagger-ui .btn {
+    border-radius: var(--radius-sm) !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    padding: 8px 20px !important;
+    transition: all var(--transition);
+    letter-spacing: 0.3px;
+    cursor: pointer;
+}
+
+/* Execute 执行按钮 */
+.swagger-ui .btn.execute {
+    background: linear-gradient(135deg, var(--neon-cyan), #00b8d4) !important;
+    border: none !important;
+    color: #000 !important;
+    box-shadow: var(--glow-cyan);
+}
+.swagger-ui .btn.execute:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5), 0 0 40px rgba(0, 240, 255, 0.2);
+}
+
+/* Authorize 认证按钮 */
+.swagger-ui .btn.authorize {
+    background: linear-gradient(135deg, var(--neon-green), #00cc6a) !important;
+    border: none !important;
+    color: #000 !important;
+    box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+}
+.swagger-ui .btn.authorize:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+}
+
+.swagger-ui .btn.authorize.unlocked {
+    background: linear-gradient(135deg, var(--neon-red), #e62e4e) !important;
+    box-shadow: 0 0 12px rgba(255, 51, 102, 0.3);
+}
+
+/* Cancel 取消按钮 */
+.swagger-ui .btn.cancel {
+    background: transparent !important;
+    color: var(--neon-red) !important;
+    border: 1px solid rgba(255, 51, 102, 0.4) !important;
+}
+.swagger-ui .btn.cancel:hover {
+    background: rgba(255, 51, 102, 0.1) !important;
+    border-color: var(--neon-red) !important;
+}
+
+/* Close 关闭按钮 */
+.swagger-ui .btn-done {
+    background: var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Try It Out 按钮 */
+.swagger-ui .btn.try-out__btn {
+    background: transparent !important;
+    color: var(--neon-cyan) !important;
+    border: 1px solid rgba(0, 240, 255, 0.3) !important;
+}
+.swagger-ui .btn.try-out__btn:hover {
+    background: rgba(0, 240, 255, 0.08) !important;
+    border-color: var(--neon-cyan) !important;
+}
+
+.swagger-ui .btn.try-out__btn.cancel {
+    color: var(--neon-red) !important;
+    border-color: rgba(255, 51, 102, 0.3) !important;
+}
+
+/* ========== 模态框（Authorize弹窗等） ========== */
+.swagger-ui .dialog-ux {
+    z-index: 9999;
+}
+.swagger-ui .dialog-ux .modal-ux {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), var(--glow-cyan);
+}
+.swagger-ui .dialog-ux .modal-ux-header {
+    border-bottom: 1px solid var(--border);
+}
+.swagger-ui .dialog-ux .modal-ux-header h3 {
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 700;
+}
+.swagger-ui .dialog-ux .modal-ux-content {
+    color: var(--text-secondary);
+}
+.swagger-ui .dialog-ux .modal-ux-content label {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+.swagger-ui .dialog-ux .modal-ux-content input {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-sm) !important;
+}
+.swagger-ui .dialog-ux .modal-ux-content input:focus {
+    border-color: var(--neon-cyan) !important;
+    box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1) !important;
+}
+
+/* ========== Model 数据模型区域 ========== */
+.swagger-ui .model-box {
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-card);
+}
+.swagger-ui .model-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.swagger-ui .model .property.primitive {
+    color: var(--neon-cyan);
+}
+.swagger-ui .model .property {
+    color: var(--text-secondary);
+}
+
+/* ========== 底部信息 ========== */
+.swagger-ui .info .base-url {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 12px;
+}
+
+/* ========== 加载动画 ========== */
+.swagger-ui .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+}
+
+.swagger-ui .loading-container .loading::before {
+    border-color: var(--neon-cyan);
+    border-top-color: transparent;
+}
+
+/* ========== 自定义滚动条 ========== */
+.swagger-ui ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.swagger-ui ::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+.swagger-ui ::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.2);
+    border-radius: 4px;
+}
+.swagger-ui ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 240, 255, 0.35);
+}
+
+/* ========== 认证信息标记 ========== */
+.swagger-ui .auth-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.swagger-ui .auth-wrapper .authorize {
+    margin-right: 0;
+}
+
+.swagger-ui .auth-btn-wrapper {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 16px 0;
+}
+
+/* ========== 响应式适配 ========== */
+@media (max-width: 768px) {
+    .swagger-ui .info {
+        padding: 24px 20px;
+        margin: 20px 0;
+    }
+    .swagger-ui .info .title {
+        font-size: 24px;
+    }
+    .swagger-ui .opblock .opblock-summary {
+        padding: 12px 14px !important;
+        flex-wrap: wrap;
+    }
+    .swagger-ui .opblock .opblock-summary-path {
+        font-size: 12px;
+    }
+}
+
+/* ========== 搜索过滤框 ========== */
+.swagger-ui .filter-container {
+    padding: 12px 0;
+}
+.swagger-ui .filter-container .operation-filter-input {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-md) !important;
+    color: var(--text-primary) !important;
+    padding: 10px 16px !important;
+    font-size: 13px;
+    width: 100%;
+    max-width: 400px;
+    transition: var(--transition);
+}
+.swagger-ui .filter-container .operation-filter-input:focus {
+    border-color: var(--neon-magenta) !important;
+    box-shadow: 0 0 0 3px rgba(255, 0, 255, 0.1), 0 0 12px rgba(255, 0, 255, 0.15) !important;
+}
+.swagger-ui .filter-container .operation-filter-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* ========== Servers 服务器下拉 ========== */
+.swagger-ui .servers select {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 13px;
+    padding: 6px 12px !important;
+}
+
+/* ========== Schemes（协议分组） ========== */
+.swagger-ui .scheme-container {
+    padding: 20px 0 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+/* ========== header/description 链接 ========== */
+.swagger-ui a {
+    color: var(--neon-cyan);
+    transition: var(--transition);
+}
+.swagger-ui a:hover {
+    color: var(--neon-magenta);
 }

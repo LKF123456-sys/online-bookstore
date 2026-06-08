@@ -47,45 +47,75 @@ public class OpenApiConfig {
                         .title("BookVerse 在线书店 — 管理后台 API") // API文档标题
                         // API文档描述（支持HTML格式的文本块）
                         .description("""
-                                <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:20px;border-radius:12px;color:#fff;margin-bottom:16px;">
-                                  <h2 style="margin:0 0 8px 0;">📚 BookVerse 管理后台 API 文档</h2>
-                                  <p style="margin:0;opacity:0.9;">微服务架构 · Spring Cloud · RESTful API v1.0</p>
+                                <div style="background:linear-gradient(135deg,#0d0d2b,#1a0a2e);padding:28px;border-radius:16px;border:1px solid rgba(0,240,255,0.15);margin-bottom:24px;position:relative;overflow:hidden;">
+                                  <div style="position:absolute;top:-40px;right:-20px;width:120px;height:120px;background:radial-gradient(circle,rgba(0,240,255,0.15),transparent 70%);border-radius:50%;"></div>
+                                  <div style="position:absolute;bottom:-30px;left:30%;width:100px;height:100px;background:radial-gradient(circle,rgba(255,0,255,0.1),transparent 70%);border-radius:50%;"></div>
+                                  <h2 style="margin:0 0 6px 0;font-size:26px;background:linear-gradient(90deg,#00f0ff,#ff00ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">BOOKVERSE API v1.0</h2>
+                                  <p style="margin:0;color:#8899bb;font-size:14px;font-family:monospace;">&gt; 微服务架构 · Spring Cloud 2023 · 7 个独立服务 · Nacos 注册中心</p>
                                 </div>
 
-                                ## 架构概览
-                                | 服务 | 端口 | 说明 |
-                                |------|------|------|
-                                | gateway | 8081 | API 网关，统一入口 |
-                                | bookstore-user | 8082 | 用户服务 |
-                                | bookstore-product | 8083 | 商品服务 |
-                                | bookstore-order | 8084 | 订单服务 |
-                                | bookstore-promotion | 8085 | 促销/优惠券/评价 |
-                                | **bookstore-admin** | **8086** | **管理后台 (本服务)** |
-                                | bookstore-message | 8087 | 消息通知 |
+                                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;">
+                                  <div style="background:rgba(0,240,255,0.06);border:1px solid rgba(0,240,255,0.12);border-radius:10px;padding:14px;text-align:center;">
+                                    <div style="font-size:22px;font-weight:800;color:#00f0ff;font-family:monospace;">7</div>
+                                    <div style="font-size:11px;color:#8899bb;margin-top:4px;">微服务模块</div>
+                                  </div>
+                                  <div style="background:rgba(0,255,136,0.06);border:1px solid rgba(0,255,136,0.12);border-radius:10px;padding:14px;text-align:center;">
+                                    <div style="font-size:22px;font-weight:800;color:#00ff88;font-family:monospace;">60+</div>
+                                    <div style="font-size:11px;color:#8899bb;margin-top:4px;">API 接口</div>
+                                  </div>
+                                  <div style="background:rgba(255,0,255,0.06);border:1px solid rgba(255,0,255,0.12);border-radius:10px;padding:14px;text-align:center;">
+                                    <div style="font-size:22px;font-weight:800;color:#ff00ff;font-family:monospace;">15</div>
+                                    <div style="font-size:11px;color:#8899bb;margin-top:4px;">数据表</div>
+                                  </div>
+                                  <div style="background:rgba(153,69,255,0.06);border:1px solid rgba(153,69,255,0.12);border-radius:10px;padding:14px;text-align:center;">
+                                    <div style="font-size:22px;font-weight:800;color:#9945ff;font-family:monospace;">JWT</div>
+                                    <div style="font-size:11px;color:#8899bb;margin-top:4px;">认证方式</div>
+                                  </div>
+                                  <div style="background:rgba(255,107,53,0.06);border:1px solid rgba(255,107,53,0.12);border-radius:10px;padding:14px;text-align:center;">
+                                    <div style="font-size:22px;font-weight:800;color:#ff6b35;font-family:monospace;">ES</div>
+                                    <div style="font-size:11px;color:#8899bb;margin-top:4px;">搜索引擎</div>
+                                  </div>
+                                </div>
 
-                                ## 认证方式
-                                - **管理端**：Session 认证，访问 `/admin/login` 登录
-                                - 登录后获取 `JSESSIONID`，后续请求自动携带
+                                ## 架构拓扑
 
-                                ## 通用响应格式
+                                | 服务 | 端口 | 技术栈 | 职责 |
+                                |------|------|--------|------|
+                                | **Gateway** | `8080` | Spring Cloud Gateway | 统一路由 & JWT 鉴权 |
+                                | **User** | `8081` | Spring Security + JWT | 注册 / 登录 / 用户管理 |
+                                | **Product** | `8082` | Elasticsearch | 商品 CRUD / 搜索 / 分类 |
+                                | **Order** | `8083` | OpenFeign | 订单 / 购物车 / 支付 |
+                                | **Promotion** | `8085` | - | 优惠券 / 评价 / 公告 |
+                                | **Admin** | `8086` | JSP + RestTemplate | 管理后台 (本服务) |
+                                | **Message** | `8087` | WebSocket | 站内信 / 实时通知 |
+
+                                ## 安全策略
+                                - **认证**：JWT Token (Header: `Authorization: Bearer <token>`)
+                                - **管理端**：Session Cookie (`JSESSIONID`)
+                                - **密码加密**：BCrypt 哈希算法
+                                - **跨服务调用**：内部服务通过 Nacos 发现直连，外部请求必须经过 Gateway
+
+                                ## 统一响应
+
                                 ```json
                                 {
-                                  "success": true,
-                                  "message": "操作成功",
+                                  "code": 200,
+                                  "message": "success",
                                   "data": {}
                                 }
                                 ```
 
-                                ## HTTP 状态码
-                                | 状态码 | 说明 |
-                                |--------|------|
-                                | 200 | 成功 |
-                                | 302 | 重定向 |
-                                | 400 | 参数错误 |
-                                | 401 | 未认证 |
-                                | 403 | 无权限 |
-                                | 404 | 未找到 |
-                                | 500 | 服务器错误 |
+                                ## 状态码速查
+
+                                | 状态码 | 含义 | 触发场景 |
+                                |--------|------|----------|
+                                | `200` | OK | 请求成功 |
+                                | `302` | Redirect | 页面重定向 |
+                                | `400` | Bad Request | 参数校验失败 |
+                                | `401` | Unauthorized | Token 无效或过期 |
+                                | `403` | Forbidden | 权限不足 |
+                                | `404` | Not Found | 资源不存在 |
+                                | `500` | Server Error | 服务内部异常 |
                                 """)
                         .version("1.0.0") // API版本号
                         .contact(new Contact() // 联系人信息

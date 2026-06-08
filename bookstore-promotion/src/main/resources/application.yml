@@ -74,4 +74,10 @@ management:
 logging:
   level:
     com.bookstore: ${LOG_LEVEL:INFO}  # bookStore包下的日志级别为INFO（可通过环境变量覆盖）
-    org.springframework: WARN  # Spring框架的日志级别设为WARN，减少不必要的日志输出
+    org.springframework: WARN
+
+# ==================== SpringDoc OpenAPI 配置 ====================
+# 启用 API 文档生成功能，供 Swagger UI 加载展示
+springdoc:
+  api-docs:
+    enabled: true  # 启用 /v3/api-docs 端点，生成 OpenAPI JSON 规范

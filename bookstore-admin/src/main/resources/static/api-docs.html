@@ -1,123 +1,212 @@
-<%-- ============================================================
-     api-docs.html — BookVerse API 文档页面
-     功能：使用 Swagger UI 展示项目所有 REST API 接口文档
-     说明：
-       - Swagger UI 是一个自动生成 API 文档的工具
-       - 它会读取后端的 OpenAPI 规范（JSON格式），自动渲染出交互式文档页面
-       - 用户可以在页面上直接测试 API 接口（Try It Out 功能）
-       - 本项目使用 springdoc-openapi 自动生成 OpenAPI 规范
-       - 通过配置两个 API 分组，将管理后台API和代理服务API分开展示
-     访问地址：http://localhost:8086/api-docs.html
-     ============================================================ --%>
 <!DOCTYPE html>
-<%-- 声明文档类型为 HTML5 --%>
 <html lang="zh-CN">
-<%-- html 根元素，lang="zh-CN" 表示页面语言为简体中文，有助于搜索引擎和屏幕阅读器 --%>
 <head>
-  <%-- ========== 页面头部：定义元信息、标题和样式 ========== --%>
   <meta charset="UTF-8">
-  <%-- 设置字符编码为 UTF-8，支持中文等多语言字符显示 --%>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <%-- 设置视口宽度为设备宽度，初始缩放比例为1.0，确保移动端自适应 --%>
-  <title>BookVerse API 文档</title>
-  <%-- 页面标题，显示在浏览器标签页上 --%>
-
-  <%-- 引入 Swagger UI 的官方样式文件（从 unpkg CDN 加载最新版本） --%>
+  <title>BookVerse API 文档 — 全服务接口</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
-  <%-- 引入项目自定义的 Swagger UI 样式，覆盖默认样式实现个性化外观 --%>
   <link rel="stylesheet" href="/css/swagger-ui-custom.css">
-  <%-- 设置页面图标（favicon），SVG 格式的书本图标 --%>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <style>
+    #particle-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
-  <%-- ========== 页面主体 ========== --%>
-
-  <%-- Swagger UI 的挂载容器，Swagger UI 会自动在这个 div 中渲染 API 文档 --%>
+  <canvas id="particle-canvas"></canvas>
   <div id="swagger-ui"></div>
 
-  <%-- 引入 Swagger UI 的核心 JavaScript 库 --%>
-  <%-- swagger-ui-bundle.js：包含 Swagger UI 的核心渲染引擎 --%>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
-  <%-- swagger-ui-standalone-preset.js：提供独立布局模式的预设配置 --%>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js" crossorigin></script>
 
   <script>
-    // ========== Swagger UI 初始化配置 ==========
-    // 页面加载完成后执行初始化
-    window.onload = function() {
-      // 创建 SwaggerUIBundle 实例，传入配置对象
-      // SwaggerUIBundle 是 Swagger UI 的核心类，负责加载和渲染 API 文档
-      window.ui = SwaggerUIBundle({
+    // ========== 赛博朋克粒子动画背景 ==========
+    (function() {
+      var canvas = document.getElementById('particle-canvas');
+      var ctx = canvas.getContext('2d');
+      var width, height;
+      var particles = [];
+      var particleCount = 80;
+      var mouse = { x: -9999, y: -9999 };
+      var isMouseOnPage = false;
 
-        // API 文档的 URL 列表（支持多分组展示）
-        // 每个分组对应一个 OpenAPI JSON 文档地址
-        // springdoc 会自动生成这些 JSON 文档
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      document.addEventListener('mousemove', function(e) {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        isMouseOnPage = true;
+      });
+      document.addEventListener('mouseleave', function() {
+        isMouseOnPage = false;
+      });
+
+      function Particle() { this.reset(); }
+      Particle.prototype.reset = function() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.6;
+        this.vy = (Math.random() - 0.5) * 0.6;
+        this.size = Math.random() * 2 + 0.8;
+        var colors = ['rgba(0,240,255,', 'rgba(153,69,255,', 'rgba(255,0,255,', 'rgba(0,255,136,'];
+        this.color = colors[Math.floor(Math.random() * colors.length)];
+      };
+      Particle.prototype.update = function() {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
+        if (this.x < -50) this.x = width + 50;
+        if (this.x > width + 50) this.x = -50;
+        if (this.y < -50) this.y = height + 50;
+        if (this.y > height + 50) this.y = -50;
+      };
+      Particle.prototype.draw = function() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fillStyle = this.color + '0.7)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size * 2.5, 0, Math.PI * 2);
+        var glow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size * 2.5);
+        glow.addColorStop(0, this.color + '0.2)');
+        glow.addColorStop(1, this.color + '0)');
+        ctx.fillStyle = glow;
+        ctx.fill();
+      };
+
+      for (var i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, width, height);
+        for (var i = 0; i < particles.length; i++) {
+          particles[i].update();
+          particles[i].draw();
+        }
+        for (var i = 0; i < particles.length; i++) {
+          for (var j = i + 1; j < particles.length; j++) {
+            var dx = particles[i].x - particles[j].x;
+            var dy = particles[i].y - particles[j].y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 130) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              var alpha = (1 - dist / 130) * 0.15;
+              ctx.strokeStyle = 'rgba(0,240,255,' + alpha + ')';
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+        }
+        if (isMouseOnPage) {
+          for (var i = 0; i < particles.length; i++) {
+            var dx = particles[i].x - mouse.x;
+            var dy = particles[i].y - mouse.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 200) {
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(mouse.x, mouse.y);
+              var alpha = (1 - dist / 200) * 0.3;
+              ctx.strokeStyle = 'rgba(255,0,255,' + alpha + ')';
+              ctx.lineWidth = 0.6;
+              ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(animate);
+      }
+      animate();
+    })();
+
+    // ========== Swagger UI 初始化 — 全微服务 API ==========
+    window.onload = function() {
+      window.ui = SwaggerUIBundle({
+        // ===== 所有微服务的 OpenAPI 规范地址 =====
+        // 每个微服务都会自动生成 /v3/api-docs 端点（JSON 格式的 OpenAPI 规范）
+        // Swagger UI 会从这些地址加载 API 文档，在顶部下拉菜单中切换查看
         urls: [
-          {url: "/v3/api-docs/管理后台API", name: "管理后台 API"},
-          // 管理后台 API 分组：包含 PageController 等管理后台接口
-          {url: "/v3/api-docs/服务代理", name: "服务代理 API"}
-          // 服务代理 API 分组：包含 AuthProxyController 等代理转发接口
+          // 管理后台（有自定义分组：管理后台 API + 服务代理 API）
+          {url: "http://localhost:8086/v3/api-docs/%E7%AE%A1%E7%90%86%E5%90%8E%E5%8F%B0API", name: "管理后台 API"},
+          {url: "http://localhost:8086/v3/api-docs/%E6%9C%8D%E5%8A%A1%E4%BB%A3%E7%90%86",     name: "服务代理 API"},
+          // 用户服务 — 认证/注册/用户管理
+          {url: "http://localhost:8081/v3/api-docs", name: "用户服务 — Auth & User"},
+          // 商品服务 — 商品CRUD/搜索/分类/SKU
+          {url: "http://localhost:8082/v3/api-docs", name: "商品服务 — Product & Search"},
+          // 订单服务 — 订单/购物车/支付/物流
+          {url: "http://localhost:8083/v3/api-docs", name: "订单服务 — Order & Cart"},
+          // 营销服务 — 优惠券/评价/公告
+          {url: "http://localhost:8085/v3/api-docs", name: "营销服务 — Coupon & Review"},
+          // 消息服务 — 站内信/通知
+          {url: "http://localhost:8087/v3/api-docs", name: "消息服务 — Message & Notification"}
         ],
 
-        // 默认显示的分组名称（优先展示管理后台API）
+        // 默认展开显示"管理后台 API"分组
         "urls.primaryName": "管理后台 API",
 
-        // DOM 元素选择器，指定 Swagger UI 渲染到哪个容器中
+        // DOM 容器
         dom_id: '#swagger-ui',
 
-        // 深度链接：启用后 URL 中会包含当前展开的接口信息，方便分享特定接口链接
+        // 深度链接：URL 锚点记录当前展开的接口，方便分享
         deepLinking: true,
 
-        // 显示请求耗时（毫秒），方便开发者了解接口响应速度
+        // 显示请求耗时
         displayRequestDuration: true,
 
-        // 默认展开 Models（数据模型）的层级深度
-        // 1 = 展开第一层，0 = 完全折叠
+        // Models 展开层级
         defaultModelsExpandDepth: 1,
-
-        // 单个 Model 展开的深度
         defaultModelExpandDepth: 1,
 
-        // 文档展开模式：
-        // "list" = 只展开接口列表（不展开详情），"full" = 全部展开，"none" = 全部折叠
+        // 接口默认折叠为列表模式
         docExpansion: "list",
 
-        // 启用过滤功能：顶部出现搜索框，可按关键词筛选接口
+        // 启用接口搜索过滤
         filter: true,
 
-        // 显示 OpenAPI 扩展字段
+        // 显示扩展字段
         showExtensions: true,
-
-        // 显示 OpenAPI 通用扩展字段
         showCommonExtensions: true,
 
-        // 代码高亮主题设置
-        syntaxHighlight: {
-          theme: "monokai"  // 使用 Monokai 暗色主题（类似 VS Code 深色主题）
-        },
+        // 代码高亮主题：Monokai 暗色
+        syntaxHighlight: { theme: "monokai" },
 
-        // 启用 "Try It Out" 功能：允许用户在页面上直接发送 API 请求进行测试
+        // 启用 "Try It Out" 在线测试
         tryItOutEnabled: true,
 
-        // ========== 插件和预设配置 ==========
-        // 预设（presets）：Swagger UI 的功能模块组合
+        // 预设：API 文档解析 + 独立布局
         presets: [
           SwaggerUIBundle.presets.apis,
-          // apis 预设：提供 API 文档解析和渲染的基础功能
           SwaggerUIStandalonePreset
-          // StandaloneLayout 预设：提供独立页面布局（带顶部栏）
         ],
 
-        // 插件列表
+        // 插件：支持从 URL 下载规范
         plugins: [
           SwaggerUIBundle.plugins.DownloadUrl
-          // DownloadUrl 插件：支持从指定 URL 下载 API 规范文档
         ],
 
-        // 页面布局模式
-        // "StandaloneLayout" = 独立页面布局（有顶部导航栏）
-        // "BaseLayout" = 基础布局（只有文档内容，无顶部栏）
-        layout: "StandaloneLayout"
+        // 布局模式：独立页面（含顶部栏）
+        layout: "StandaloneLayout",
+
+        // ===== 请求拦截器：为 Try It Out 自动添加认证 Header =====
+        requestInterceptor: function(req) {
+          // 如果浏览器中存在 admin session，可以考虑自动携带
+          // 这里暂时不做自动处理，用户可手动在 Authorize 中设置
+          return req;
+        }
       });
     };
   </script>
