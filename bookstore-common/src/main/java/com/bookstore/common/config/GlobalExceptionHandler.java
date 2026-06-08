@@ -1,6 +1,7 @@
 package com.bookstore.common.config;  // 声明当前类所属的包路径
 
 import com.bookstore.common.api.Result;  // 导入统一返回结果类
+import com.bookstore.common.exception.BusinessException;
 import jakarta.validation.ConstraintViolationException;  // 导入约束违反异常
 import org.slf4j.Logger;  // 导入日志接口
 import org.slf4j.LoggerFactory;  // 导入日志工厂类
@@ -71,6 +72,17 @@ public class GlobalExceptionHandler {  // 全局异常处理器类
     @ResponseStatus(HttpStatus.BAD_REQUEST)  // 设置HTTP响应状态码为400
     public Result<Void> handleIllegalArgument(IllegalArgumentException e) {  // 处理非法参数异常方法
         return Result.error(400, e.getMessage());  // 返回400错误结果，包含异常信息
+    }
+
+    /**
+     * 处理业务异常 — 替代原有 catch(Exception ignored) {} 静默吞异常模式
+     * @param e 业务异常
+     * @return 统一错误结果
+     */
+    @ExceptionHandler(BusinessException.class)
+    public Result<Void> handleBusinessException(BusinessException e) {
+        log.error("业务异常: code={}, message={}", e.getCode(), e.getMessage());
+        return Result.error(e.getCode(), e.getMessage());
     }
 
     /**
