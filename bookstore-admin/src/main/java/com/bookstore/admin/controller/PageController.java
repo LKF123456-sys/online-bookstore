@@ -945,7 +945,7 @@ public class PageController {
     // ======================== 管理后台路径兼容重定向 ========================
 
     /** 管理后台根路径 -> /admin/index */
-    @GetMapping("/admin/")
+    @GetMapping({"/admin", "/admin/"})
     public String adminRoot() { return "redirect:/admin/index"; }
 
     /** 管理后台商品列表路径兼容 -> /admin/product */
