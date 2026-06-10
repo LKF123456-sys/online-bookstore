@@ -92,7 +92,7 @@ public class CartService {  // 购物车服务类
         }).collect(Collectors.toList());  // 收集为List集合
 
         cartVO.setItems(itemVOs);  // 设置购物车的商品项列表
-        cartVO.setTotalCount(itemVOs.size());  // 设置购物车中的商品种类数量
+        cartVO.setTotalCount(itemVOs.stream().mapToInt(CartItemVO::getQuantity).sum());  // 设置购物车中的商品总数量（所有商品数量之和）
 
         return cartVO;  // 返回购物车视图对象
     }

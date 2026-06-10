@@ -29,7 +29,7 @@ public class BookReview {  // 图书评论实体类
     @TableField("is_top")  // 字段映射注解，指定Java字段对应的数据库列名为"is_top"
     private Integer isTop;  // 是否置顶：0-不置顶 1-置顶
     private String reply;  // 管理员回复内容
-    @TableField("create_time")  // 字段映射注解，指定Java字段对应的数据库列名为"create_time"
+    @TableField(value = "create_time", fill = FieldFill.INSERT)  // 字段映射注解，指定数据库列名并设置插入时自动填充
     private LocalDateTime createTime;  // 评论创建时间
     private Integer blocked;  // 是否被屏蔽：0-正常 1-已屏蔽
 }

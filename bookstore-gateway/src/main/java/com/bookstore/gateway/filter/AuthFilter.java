@@ -1,104 +1,190 @@
-package com.bookstore.gateway.filter; // 声明当前类所在的包路径，filter包专门存放过滤器相关代码
+package com.bookstore.gateway.filter; // 声明当前类所在的包路径，filter包专门存放网关过滤器相关代码
 
-import org.springframework.cloud.gateway.filter.GatewayFilterChain; // 导入网关过滤器链，用于将请求传递给下一个过滤器
-import org.springframework.cloud.gateway.filter.GlobalFilter; // 导入全局过滤器接口，实现此接口的过滤器会对所有请求生效
-import org.springframework.core.Ordered; // 导入Ordered接口，用于控制过滤器的执行顺序
-import org.springframework.http.HttpHeaders; // 导入HTTP请求头常量类，包含常见的请求头名称
-import org.springframework.http.server.reactive.ServerHttpRequest; // 导入响应式HTTP请求对象，用于读取和修改请求信息
-import org.springframework.stereotype.Component; // 导入组件注解，让Spring自动创建并管理这个类的实例
-import org.springframework.web.server.ServerWebExchange; // 导入服务端Web交换对象，封装了请求和响应信息
-import reactor.core.publisher.Mono; // 导入Reactor的Mono类型，表示一个异步的0或1个元素的流
+import io.jsonwebtoken.Claims; // 导入JJWT库的Claims类，用于表示JWT令牌中包含的声明（载荷数据）
+import io.jsonwebtoken.Jwts; // 导入JJWT库的核心工具类，用于解析和验证JWT令牌
+import io.jsonwebtoken.security.Keys; // 导入JJWT的密钥工具类，用于根据字节数组生成HMAC签名密钥
+import org.springframework.beans.factory.annotation.Value; // 导入Spring的@Value注解，用于从配置文件中注入属性值
+import org.springframework.cloud.gateway.filter.GatewayFilterChain; // 导入网关过滤器链接口，用于将请求传递给下一个过滤器
+import org.springframework.cloud.gateway.filter.GlobalFilter; // 导入全局过滤器接口，实现此接口的过滤器会对所有路由生效
+import org.springframework.core.Ordered; // 导入Ordered接口，用于控制过滤器的执行顺序（数值越小优先级越高）
+import org.springframework.http.HttpHeaders; // 导入HTTP请求头常量类，提供标准请求头名称常量如AUTHORIZATION
+import org.springframework.http.HttpStatus; // 导入HTTP状态码枚举类，如UNAUTHORIZED(401)、FORBIDDEN(403)
+import org.springframework.http.server.reactive.ServerHttpRequest; // 导入响应式HTTP请求对象，用于读取请求信息（路径、头信息等）
+import org.springframework.http.server.reactive.ServerHttpResponse; // 导入响应式HTTP响应对象，用于构建和发送响应
+import org.springframework.stereotype.Component; // 导入Spring组件注解，标记该类为Spring管理的Bean，自动注册到容器中
+import org.springframework.web.server.ServerWebExchange; // 导入ServerWebExchange对象，封装了请求和响应的上下文信息
+import reactor.core.publisher.Mono; // 导入Project Reactor的Mono类型，表示一个异步的0或1个元素的响应式流
 
-import java.util.Base64; // 导入Base64工具类，用于解码JWT Token中的Base64编码内容
-import java.util.List; // 导入List集合接口，用于存储白名单路径
+import javax.crypto.SecretKey; // 导入Java加密API的SecretKey接口，表示对称加密的密钥
+import java.nio.charset.StandardCharsets; // 导入标准字符集类，提供UTF_8等编码常量，避免编码字符串的歧义
+import java.util.List; // 导入Java集合框架的List接口，用于存储白名单路径和管理员路径列表
 
 /**
- * 认证过滤器 - 网关的全局过滤器
- * 作用：拦截所有经过网关的请求，提取用户身份信息，并传递给下游微服务
- *
- * 工作流程：
- * 1. 检查请求路径是否在白名单中，如果是则直接放行（不需要登录的接口）
- * 2. 尝试从请求头的Authorization字段中解析JWT Token，提取userId
- * 3. 如果没有Token，则尝试从URL查询参数中获取userId（方便开发测试）
- * 4. 如果都没有，使用"anonymous"作为默认值（匿名用户）
- * 5. 将userId添加到请求头X-User-Id中，传递给下游微服务使用
+ * 网关认证过滤器
+ * 职责：
+ * 1. 白名单路径直接放行（登录、注册、公开查询接口）
+ * 2. 使用 JJWT 对 JWT Token 进行签名验证和信息提取
+ * 3. 将 userId、role 注入请求头传递给下游微服务
+ * 4. 对 admin 接口进行角色校验（RBAC）
  */
-@Component // 将这个类注册为Spring组件，Spring容器会自动创建它的实例（Bean）
-public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter接口使其成为全局过滤器，实现Ordered接口控制执行顺序
+@Component // Spring组件注解，将该过滤器自动注册为Spring容器中的Bean，使其对所有网关路由生效
+public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter接口（全局过滤器）和Ordered接口（控制执行顺序）
 
     /**
-     * 白名单路径列表
-     * 这些路径对应的接口不需要用户登录就可以访问
-     * 例如：登录接口、注册接口、商品列表等公开接口
+     * 无需认证的白名单路径
+     * 这些路径允许未登录用户直接访问，包括登录、注册、商品浏览等公开接口
      */
-    private static final List<String> WHITE_LIST = List.of(
-            "/api/auth/login", "/api/auth/register",  // 登录和注册接口，未登录用户也需要访问
-            "/api/product/list", "/api/product/recommend", "/api/product/hot",  // 商品列表、推荐、热门商品接口
-            "/api/category/list", "/api/announcement/list",  // 分类列表和公告列表接口
-            "/api/search", "/api/coupon/list"  // 搜索接口和优惠券列表接口
+    private static final List<String> WHITE_LIST = List.of( // 定义不可变的白名单路径列表，static final确保全局唯一且不可修改
+            "/api/auth/login", "/api/auth/register", // 登录接口和注册接口，未登录用户必须可以访问
+            "/api/product/list", "/api/product/recommend", "/api/product/hot", // 商品列表、推荐商品、热门商品等公开浏览接口
+            "/api/product/detail", "/api/category/list", "/api/announcement/active", // 商品详情、分类列表、活动公告等公开查询接口
+            "/api/search", "/api/coupon/list", // 搜索接口和优惠券列表接口，允许匿名访问
+            "/api/review/product/", // 商品评论查询接口，任何人可以查看评论
+            "/actuator" // Spring Boot健康检查端点，用于运维监控
     );
 
     /**
-     * 核心过滤方法 - 每个请求经过网关时都会执行此方法
-     * @param exchange Web交换对象，包含当前请求和响应的所有信息
-     * @param chain 过滤器链，调用chain.filter()将请求传递给下一个过滤器或目标服务
-     * @return Mono<Void> 表示异步操作完成后没有返回值
+     * 需要 admin 角色的路径前缀
+     * 以这些前缀开头的路径要求用户必须具有管理员角色
      */
-    @Override // 表示重写GlobalFilter接口中的filter方法
-    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-        ServerHttpRequest request = exchange.getRequest(); // 从交换对象中获取当前的HTTP请求对象
-        String path = request.getURI().getPath(); // 获取请求的URL路径，例如 /api/product/list
+    private static final List<String> ADMIN_PATHS = List.of( // 定义需要管理员权限的路径前缀列表
+            "/admin/" // 管理后台的所有接口前缀，需要admin角色才能访问
+    );
 
-        // 白名单路径直接放行，不进行认证检查
-        for (String whitePath : WHITE_LIST) { // 遍历白名单中的每一个路径
-            if (path.startsWith(whitePath) || path.equals(whitePath)) { // 判断当前请求路径是否以白名单路径开头或完全匹配
-                return chain.filter(exchange); // 匹配则直接放行，将请求传递给下一个过滤器或目标服务
-            }
-        }
+    @Value("${jwt.secret:BookVerseSecretKey2024ForJWTTokenGenerationMustBe256BitsLongEnough}") // 从配置文件注入JWT签名密钥，若未配置则使用默认值
+    private String jwtSecret; // JWT签名密钥字符串，用于验证Token的完整性
 
-        String userId = null; // 初始化用户ID为null，后续会尝试从不同来源获取
-
-        // 第1步：尝试从JWT Token中提取userId
-        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION); // 从请求头中获取Authorization字段的值
-        if (authHeader != null && authHeader.startsWith("Bearer ")) { // 判断Authorization头是否存在且以"Bearer "开头（JWT Token的标准格式）
-            try {
-                String token = authHeader.substring(7); // 去掉"Bearer "前缀（7个字符），得到纯Token字符串
-                String payload = new String(Base64.getUrlDecoder().decode(token.split("\\.")[1])); // JWT由三部分（header.payload.signature）用"."分隔，取第2部分（payload）并用Base64解码
-                // 简单从解码后的JSON字符串中提取userId字段
-                int start = payload.indexOf("\"userId\":\"") + 10; // 查找"userId":"的位置，并跳过这10个字符（即"userId":"的长度），定位到userId值的起始位置
-                if (start > 9) { // 如果找到（start > 9说明indexOf找到了匹配项，没找到会返回-1）
-                    int end = payload.indexOf("\"", start); // 从userId值的起始位置向后查找下一个双引号，即userId值的结束位置
-                    userId = payload.substring(start, end); // 截取userId的值
-                }
-            } catch (Exception ignored) { // 如果Token解析过程出现任何异常（格式错误等），静默忽略，继续后续逻辑
-            }
-        }
-
-        // 第2步：如果没有从Token中获取到userId，尝试从URL查询参数中获取（方便开发和测试阶段使用）
-        if (userId == null) { // 检查上一步是否成功获取到了userId
-            userId = request.getQueryParams().getFirst("userId"); // 从URL查询参数中获取userId，例如 ?userId=123
-        }
-
-        // 第3步：如果还是没有获取到userId，使用默认值"anonymous"表示匿名用户
-        if (userId == null) { // 再次检查是否获取到了userId
-            userId = "anonymous"; // 设置默认值为"anonymous"，表示未登录的匿名用户
-        }
-
-        // 将提取到的userId添加到请求头中，传递给下游的微服务使用
-        ServerHttpRequest mutatedRequest = request.mutate() // 创建请求的修改器（Builder模式），用于修改请求内容
-                .header("X-User-Id", userId) // 添加自定义请求头X-User-Id，值为提取到的userId
-                .build(); // 构建修改后的新请求对象
-
-        return chain.filter(exchange.mutate().request(mutatedRequest).build()); // 将修改后的请求放入exchange中，传递给过滤器链继续处理
+    /**
+     * 根据密钥字符串生成HMAC签名密钥对象
+     * @return SecretKey HMAC-SHA签名密钥，用于JWT令牌的签名验证
+     */
+    private SecretKey getSigningKey() { // 私有方法，将字符串密钥转换为JJWT所需的SecretKey对象
+        return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)); // 将密钥字符串转为UTF-8字节数组，生成HMAC-SHA密钥
     }
 
     /**
-     * 获取过滤器的执行顺序（优先级）
-     * 数值越小，优先级越高，越早执行
-     * @return 返回-100，表示这个过滤器会在大多数其他过滤器之前执行
+     * 网关全局过滤器的核心方法，所有请求都会经过此方法处理
+     * @param exchange 请求和响应的上下文对象，包含完整的HTTP请求/响应信息
+     * @param chain 过滤器链，调用chain.filter()将请求传递给下一个过滤器或目标服务
+     * @return Mono<Void> 响应式的空返回值，表示异步处理完成
      */
-    @Override // 表示重写Ordered接口中的getOrder方法
-    public int getOrder() {
-        return -100; // 返回-100，优先级较高，确保认证逻辑在路由转发之前执行
+    @Override // 重写GlobalFilter接口的filter方法
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) { // 全局过滤器的主逻辑方法
+        ServerHttpRequest request = exchange.getRequest(); // 从上下文中获取当前HTTP请求对象
+        String path = request.getURI().getPath(); // 提取请求的URI路径部分，如 /api/product/list
+
+        // 1. 白名单路径直接放行
+        if (isWhiteListed(path)) { // 判断当前请求路径是否在白名单中
+            return chain.filter(exchange); // 白名单路径无需认证，直接传递给下一个过滤器
+        }
+
+        // 2. 提取并验证 JWT Token
+        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION); // 从请求头中获取Authorization字段的值
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) { // 检查Authorization头是否存在且以"Bearer "开头
+            return unauthorized(exchange, "Missing or invalid Authorization header"); // 格式不正确则返回401未授权响应
+        }
+
+        String token = authHeader.substring(7); // 截取"Bearer "之后的部分，得到纯JWT令牌字符串
+        Claims claims; // 声明JWT声明（载荷）变量，用于存储解析后的Token数据
+        try {
+            claims = Jwts.parser() // 创建JWT解析器构建器
+                    .verifyWith(getSigningKey()) // 设置用于验证签名的HMAC密钥
+                    .build() // 构建JWT解析器实例
+                    .parseSignedClaims(token) // 解析并验证JWT令牌的签名和有效性
+                    .getPayload(); // 提取JWT的载荷部分（包含用户信息等声明）
+        } catch (Exception e) { // 捕获所有解析异常，包括令牌过期、签名无效、格式错误等
+            return unauthorized(exchange, "Invalid or expired token"); // Token验证失败，返回401未授权响应
+        }
+
+        // 3. 提取用户信息
+        String userId = claims.get("userId", String.class); // 从JWT载荷中提取userId字段，类型为String
+        String role = claims.get("role", String.class); // 从JWT载荷中提取role字段，类型为String
+
+        if (userId == null || userId.isEmpty()) { // 校验userId是否存在，这是必须的用户标识
+            return unauthorized(exchange, "Token missing userId claim"); // userId缺失则返回401未授权响应
+        }
+
+        // 4. RBAC: 管理后台接口需要 admin 角色
+        if (isAdminPath(path) && !"admin".equals(role)) { // 如果请求路径是管理后台路径，但用户角色不是admin
+            return forbidden(exchange, "Admin access required"); // 角色权限不足，返回403禁止访问响应
+        }
+
+        // 5. 将用户信息注入请求头，传递给下游微服务
+        ServerHttpRequest mutatedRequest = request.mutate() // 创建请求的可变构建器，用于修改请求头
+                .header("X-User-Id", userId) // 将解析出的用户ID注入到自定义请求头中
+                .header("X-User-Role", role != null ? role : "user") // 将用户角色注入到自定义请求头中，若角色为空则默认为"user"
+                .build(); // 构建修改后的不可变请求对象
+
+        return chain.filter(exchange.mutate().request(mutatedRequest).build()); // 用修改后的请求构建新的exchange，传递给过滤器链继续处理
+    }
+
+    /**
+     * 判断请求路径是否在白名单中
+     * @param path 请求的URI路径
+     * @return true表示路径在白名单中（无需认证），false表示需要认证
+     */
+    private boolean isWhiteListed(String path) { // 私有方法，检查路径是否匹配白名单
+        for (String whitePath : WHITE_LIST) { // 遍历白名单中的每一个路径
+            if (path.startsWith(whitePath) || path.equals(whitePath)) { // 判断请求路径是否以白名单路径开头或完全相等
+                return true; // 匹配成功，该路径无需认证
+            }
+        }
+        return false; // 遍历完所有白名单路径都未匹配，该路径需要认证
+    }
+
+    /**
+     * 判断请求路径是否为管理员接口路径
+     * @param path 请求的URI路径
+     * @return true表示是管理员路径（需要admin角色），false表示不是
+     */
+    private boolean isAdminPath(String path) { // 私有方法，检查路径是否属于管理后台
+        for (String adminPath : ADMIN_PATHS) { // 遍历管理员路径前缀列表
+            if (path.startsWith(adminPath)) { // 判断请求路径是否以管理员路径前缀开头
+                return true; // 匹配成功，该路径需要admin角色
+            }
+        }
+        return false; // 遍历完所有管理员路径前缀都未匹配，该路径不需要特殊角色
+    }
+
+    /**
+     * 返回401未授权的JSON响应
+     * @param exchange 请求上下文对象
+     * @param message 错误描述信息，将包含在响应体中
+     * @return Mono<Void> 响应式空返回值，表示响应已写入完成
+     */
+    private Mono<Void> unauthorized(ServerWebExchange exchange, String message) { // 私有方法，构建401未授权响应
+        ServerHttpResponse response = exchange.getResponse(); // 从上下文中获取HTTP响应对象
+        response.setStatusCode(HttpStatus.UNAUTHORIZED); // 设置HTTP状态码为401（未授权）
+        response.getHeaders().add("Content-Type", "application/json;charset=UTF-8"); // 设置响应内容类型为JSON，字符编码为UTF-8
+        String body = "{\"code\":401,\"message\":\"" + message + "\",\"data\":null}"; // 拼接JSON格式的响应体，包含状态码、错误消息和空数据
+        return response.writeWith( // 将响应体写入HTTP响应流
+                Mono.just(response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))) // 将JSON字符串转为UTF-8字节数组，再包装为数据缓冲区，通过Mono发出
+        );
+    }
+
+    /**
+     * 返回403禁止访问的JSON响应
+     * @param exchange 请求上下文对象
+     * @param message 错误描述信息，将包含在响应体中
+     * @return Mono<Void> 响应式空返回值，表示响应已写入完成
+     */
+    private Mono<Void> forbidden(ServerWebExchange exchange, String message) { // 私有方法，构建403禁止访问响应
+        ServerHttpResponse response = exchange.getResponse(); // 从上下文中获取HTTP响应对象
+        response.setStatusCode(HttpStatus.FORBIDDEN); // 设置HTTP状态码为403（禁止访问）
+        response.getHeaders().add("Content-Type", "application/json;charset=UTF-8"); // 设置响应内容类型为JSON，字符编码为UTF-8
+        String body = "{\"code\":403,\"message\":\"" + message + "\",\"data\":null}"; // 拼接JSON格式的响应体，包含状态码、错误消息和空数据
+        return response.writeWith( // 将响应体写入HTTP响应流
+                Mono.just(response.bufferFactory().wrap(body.getBytes(StandardCharsets.UTF_8))) // 将JSON字符串转为UTF-8字节数组，再包装为数据缓冲区，通过Mono发出
+        );
+    }
+
+    /**
+     * 获取过滤器的执行顺序
+     * 数值越小优先级越高，-100确保认证过滤器在大多数其他过滤器之前执行
+     * @return 过滤器排序值，-100表示高优先级
+     */
+    @Override // 重写Ordered接口的getOrder方法
+    public int getOrder() { // 返回过滤器的执行优先级顺序
+        return -100; // 返回-100，确保认证过滤器优先执行，在路由转发之前完成身份验证
     }
 }

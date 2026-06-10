@@ -1,178 +1,155 @@
-package com.bookstore.admin.controller.api;
+package com.bookstore.admin.controller.api; // 声明当前接口所属的包路径：REST API控制器层
 
+// 导入订单服务类，处理订单创建、查询、支付、取消等业务逻辑
 import com.bookstore.admin.service.OrderService;
+// 导入公共模块的统一响应封装类Result，所有接口返回值都通过此类包装
 import com.bookstore.common.api.Result;
+// 导入业务异常类，用于抛出业务逻辑相关的异常（如未登录、支付失败等）
 import com.bookstore.common.exception.BusinessException;
+// 导入Jakarta Servlet的HTTP会话接口，用于获取当前登录用户信息
 import jakarta.servlet.http.HttpSession;
+// 导入Lombok的@RequiredArgsConstructor注解，为所有final字段生成构造函数
 import lombok.RequiredArgsConstructor;
+// 导入Lombok的@Slf4j注解，自动生成log日志对象
 import lombok.extern.slf4j.Slf4j;
+// 导入Spring MVC的REST相关注解
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.Map; // 导入Java集合框架的Map接口
 
 /**
  * 订单 REST API 控制器
- * <p>
- * 职责：为 Vue 前端提供订单及购物车相关的 RESTful 接口，包括创建订单、
- *       订单列表查询、订单详情、支付、取消、确认收货，以及购物车的增删改查。
- * <p>
- * 所属模块：bookstore-admin · controller · api
- * <p>
- * 用户身份获取：通过私有方法 getUserId() 统一处理，
- *       优先从请求头 X-User-Id（JWT 解析结果）获取，其次从 Session 获取。
- * <p>
- * 包含接口：
- * <ul>
- *   <li>订单：
- *     <ul>
- *       <li>POST   /api/orders                    — 创建订单</li>
- *       <li>GET    /api/orders                    — 用户订单列表</li>
- *       <li>GET    /api/orders/{orderId}          — 订单详情</li>
- *       <li>POST   /api/orders/{orderId}/pay      — 支付订单</li>
- *       <li>POST   /api/orders/{orderId}/cancel   — 取消订单</li>
- *       <li>POST   /api/orders/{orderId}/confirm  — 确认收货</li>
- *     </ul>
- *   </li>
- *   <li>购物车：
- *     <ul>
- *       <li>GET    /api/orders/cart              — 获取购物车</li>
- *       <li>POST   /api/orders/cart              — 添加到购物车</li>
- *       <li>PUT    /api/orders/cart/{itemId}     — 更新购物车项</li>
- *       <li>DELETE /api/orders/cart/{itemId}     — 删除购物车项</li>
- *     </ul>
- *   </li>
- * </ul>
- *
- * @author bookstore
+ * 为Vue前端提供订单和购物车相关的RESTful接口，
+ * 包括订单的创建、查询、支付、取消、确认收货，以及购物车的增删改查等操作。
+ * 用户身份优先从请求头X-User-Id获取（JWT认证模式），其次从Session获取（兼容模式）。
  */
-// @Slf4j：Lombok 注解，自动生成 log 日志对象，用于记录运行时日志
-@Slf4j
-// @RestController：Spring MVC 注解，标识该类为 REST 控制器，
-// 所有方法返回值自动序列化为 JSON 响应体
-@RestController
-// @RequestMapping：将控制器映射到 /api/orders 路径下，所有接口 URL 以此为前缀
-@RequestMapping("/api/orders")
-// @RequiredArgsConstructor：Lombok 注解，为所有 final 字段生成构造方法，
-// Spring 自动注入对应的 Bean
-@RequiredArgsConstructor
+@Slf4j // Lombok注解，自动生成log日志对象
+@RestController // 标记为REST控制器，返回值自动序列化为JSON响应体
+@RequestMapping("/api/orders") // 设置该控制器所有接口的URL前缀为/api/orders
+@RequiredArgsConstructor // Lombok自动生成包含final字段的构造函数，实现构造函数注入
 public class OrderRestController {
 
-    // 订单服务层依赖，处理订单创建、支付、取消及购物车操作等核心业务逻辑
+    // 注入订单服务，处理订单和购物车相关的业务逻辑
     private final OrderService orderService;
 
-    // ========================================================================
-    // 用户身份辅助方法
-    // ========================================================================
-
     /**
-     * 获取当前请求用户的 ID
-     * <p>
-     * 优先从请求头 X-User-Id 获取（由 JWT 过滤器 / 网关解析后注入），
-     * 其次从 HTTP Session 的用户对象中提取 userid 字段。
+     * 获取当前登录用户的ID（私有辅助方法）
+     * 优先从请求头X-User-Id获取（由JWT过滤器/网关解析后注入），
+     * 其次从HTTP Session的user对象中提取userid字段。
      * 两种方式均失败则抛出未登录异常。
      *
-     * @param session      HTTP 会话对象，用于兼容模式下读取 user 属性
-     * @param headerUserId 请求头 X-User-Id 的值，可为 null
-     * @return 当前登录用户的 ID 字符串
+     * @param session      HTTP会话对象，用于兼容模式下读取user属性
+     * @param headerUserId 请求头X-User-Id的值，可为null
+     * @return 当前登录用户的ID字符串
      * @throws BusinessException(401) 当用户未登录或无法识别身份时
      */
     private String getUserId(HttpSession session, @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
-        // 优先使用请求头中的用户 ID（JWT 无状态认证模式）
+        // 优先使用请求头中的用户ID（JWT无状态认证模式）
         if (headerUserId != null && !headerUserId.isEmpty()) return headerUserId;
-        // 回退到 Session 模式：从会话中获取登录时存入的 user 对象
+        // 回退到Session模式：从会话中获取登录时存入的user对象
         Map<String, Object> user = (Map<String, Object>) session.getAttribute("user");
-        // 若 Session 中有 user 对象，提取其中的 userid 字段
+        // 若Session中有user对象，提取其中的userid字段作为用户标识
         if (user != null) return String.valueOf(user.get("userid"));
-        // 无法识别用户身份，抛出 401 异常，需前端跳转登录页
+        // 无法识别用户身份，抛出401未登录异常
         throw new BusinessException(401, "请先登录");
     }
 
-    // ========================================================================
-    // 订单相关接口
-    // ========================================================================
+    // ======================== 订单管理接口 ========================
 
     /**
      * 创建订单
-     * <p>
-     * 接收前端传来的订单数据（商品列表、收货地址、优惠券等），
-     * 在服务端生成订单记录并返回订单信息。
+     * 将购物车中的商品生成正式订单
      *
-     * @param orderData 请求体，包含订单所需的完整数据 Map
-     * @param session   HTTP 会话对象，用于获取当前用户 ID
-     * @param userId    请求头 X-User-Id（可选）
-     * @return Result 包含新创建订单信息的成功响应
+     * @param orderData 订单数据Map，包含收货地址、商品列表、优惠券等信息
+     * @param session   HTTP会话对象
+     * @param userId    请求头X-User-Id（可选）
+     * @return Result 包装的订单信息Map，包含orderid（订单ID）
      */
-    // @PostMapping：将 HTTP POST 请求映射到 /api/orders
+    // @PostMapping：将HTTP POST请求映射到/api/orders路径，POST语义表示创建新资源
     @PostMapping
-    // @RequestBody：将 HTTP 请求体 JSON 反序列化为 Map 对象
-    public Result<?> createOrder(@RequestBody Map<String, Object> orderData,
-                                  HttpSession session,
-                                  @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 先解析当前用户 ID，再委托 OrderService 创建订单
+    public Result<?> createOrder(
+            // @RequestBody：订单数据通过请求体以JSON格式传入
+            @RequestBody Map<String, Object> orderData,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务创建订单，getUserId解析用户身份
         return orderService.createOrder(getUserId(session, userId), orderData);
     }
 
     /**
-     * 获取当前用户的订单列表
-     * <p>
-     * 支持按订单状态筛选（如待支付、已发货等）。
+     * 获取用户的订单列表（分页）
+     * 返回当前登录用户的所有历史订单
      *
-     * @param pageNum  页码，默认第 1 页
-     * @param pageSize 每页条数，默认 10 条
-     * @param status   订单状态筛选（可选），如 "pending" / "shipped" / "completed"
-     * @param session  HTTP 会话对象
-     * @param userId   请求头 X-User-Id（可选）
-     * @return Result 包含分页订单列表的成功响应
+     * @param pageNum  页码（从1开始），默认值为1
+     * @param pageSize 每页条数，默认值为10
+     * @param status   订单状态筛选（可选），如"待支付"、"已发货"等
+     * @param session  HTTP会话对象
+     * @param userId   请求头X-User-Id（可选）
+     * @return Result 包装的分页订单数据Map
      */
-    // @GetMapping：将 HTTP GET 请求映射到 /api/orders
+    // @GetMapping：将HTTP GET请求映射到/api/orders路径
     @GetMapping
-    public Result<?> list(@RequestParam(defaultValue = "1") int pageNum,
-                          @RequestParam(defaultValue = "10") int pageSize,
-                          @RequestParam(required = false) String status,
-                          HttpSession session,
-                          @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后查询该用户的订单分页列表，可按状态筛选
+    public Result<?> list(
+            // @RequestParam：页码，默认第1页
+            @RequestParam(defaultValue = "1") int pageNum,
+            // @RequestParam：每页条数，默认10条
+            @RequestParam(defaultValue = "10") int pageSize,
+            // @RequestParam(required = false)：订单状态为可选筛选条件
+            @RequestParam(required = false) String status,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务查询用户订单列表
         return orderService.userOrderList(getUserId(session, userId), pageNum, pageSize, status);
     }
 
     /**
-     * 获取指定订单的详细信息
+     * 获取订单详情
+     * 返回指定订单的完整信息，包含商品明细
      *
-     * @param orderId 订单号（路径变量），唯一标识一个订单
-     * @param session HTTP 会话对象
-     * @param userId  请求头 X-User-Id（可选）
-     * @return Result 包含订单详情（订单基本信息 + 商品明细 + 物流信息）的成功响应
+     * @param orderId 订单ID，作为URL路径变量
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的订单详情Map
      */
-    // @GetMapping：将 HTTP GET 请求映射到 /api/orders/{orderId}
+    // @GetMapping：将HTTP GET请求映射到/api/orders/{orderId}路径
     @GetMapping("/{orderId}")
-    // @PathVariable：将 URL 路径中的 {orderId} 占位符绑定到方法参数
-    public Result<?> detail(@PathVariable String orderId,
-                             HttpSession session,
-                             @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后查询指定订单的完整详情
+    public Result<?> detail(
+            // @PathVariable：将URL路径中的{orderId}占位符的值绑定到方法参数
+            @PathVariable String orderId,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务获取订单详情
         return orderService.orderDetail(getUserId(session, userId), orderId);
     }
 
     /**
      * 支付订单
-     * <p>
-     * 对指定订单执行支付操作（假设为模拟支付或调用第三方支付）。
-     * 支付成功后检查返回码，非 200 则抛出业务异常。
+     * 将订单状态从"待支付"更新为"已支付"
      *
-     * @param orderId 订单号（路径变量）
-     * @param session HTTP 会话对象
-     * @param userId  请求头 X-User-Id（可选）
-     * @return Result 空成功响应
-     * @throws BusinessException 当支付业务返回失败时
+     * @param orderId 订单ID，作为URL路径变量
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
+     * @throws BusinessException 当支付失败时抛出异常
      */
-    // @PostMapping：将 HTTP POST 请求映射到 /api/orders/{orderId}/pay
+    // @PostMapping：将HTTP POST请求映射到/api/orders/{orderId}/pay路径
     @PostMapping("/{orderId}/pay")
-    public Result<Void> pay(@PathVariable String orderId,
-                             HttpSession session,
-                             @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 调用 OrderService 执行支付逻辑
+    public Result<Void> pay(
+            // @PathVariable：订单ID路径变量
+            @PathVariable String orderId,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务执行支付操作
         Result<Void> result = orderService.payOrder(getUserId(session, userId), orderId);
-        // 检查支付结果的业务状态码，非 200 表示支付失败（如余额不足、订单状态不允许等）
+        // 如果支付返回码不是200（成功），抛出业务异常
         if (result.getCode() != 200) throw new BusinessException(result.getMessage());
         // 支付成功，返回结果
         return result;
@@ -180,111 +157,181 @@ public class OrderRestController {
 
     /**
      * 取消订单
-     * <p>
-     * 将指定订单状态置为"已取消"，仅允许在特定状态下取消（如待支付）。
+     * 将待支付订单状态设置为"已取消"
      *
-     * @param orderId 订单号（路径变量）
-     * @param session HTTP 会话对象
-     * @param userId  请求头 X-User-Id（可选）
-     * @return Result 空成功响应
+     * @param orderId 订单ID，作为URL路径变量
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
      */
-    // @PostMapping：将 HTTP POST 请求映射到 /api/orders/{orderId}/cancel
+    // @PostMapping：将HTTP POST请求映射到/api/orders/{orderId}/cancel路径
     @PostMapping("/{orderId}/cancel")
-    public Result<Void> cancel(@PathVariable String orderId,
-                                HttpSession session,
-                                @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后取消指定订单
+    public Result<Void> cancel(
+            // @PathVariable：订单ID路径变量
+            @PathVariable String orderId,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务取消订单
         return orderService.cancelOrder(getUserId(session, userId), orderId);
     }
 
     /**
      * 确认收货
-     * <p>
-     * 买家收到商品后确认收货，将订单状态置为"已完成"。
+     * 用户收到商品后确认收货，将订单状态从"已发货"更新为"已完成"
      *
-     * @param orderId 订单号（路径变量）
-     * @param session HTTP 会话对象
-     * @param userId  请求头 X-User-Id（可选）
-     * @return Result 空成功响应
+     * @param orderId 订单ID，作为URL路径变量
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
      */
-    // @PostMapping：将 HTTP POST 请求映射到 /api/orders/{orderId}/confirm
+    // @PostMapping：将HTTP POST请求映射到/api/orders/{orderId}/confirm路径
     @PostMapping("/{orderId}/confirm")
-    public Result<Void> confirm(@PathVariable String orderId,
-                                 HttpSession session,
-                                 @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后确认收货
+    public Result<Void> confirm(
+            // @PathVariable：订单ID路径变量
+            @PathVariable String orderId,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务确认收货
         return orderService.confirmReceive(getUserId(session, userId), orderId);
     }
 
-    // ========================================================================
-    // 购物车相关接口
-    // ========================================================================
+    // ======================== 购物车管理接口 ========================
 
     /**
      * 获取当前用户的购物车内容
      *
-     * @param session HTTP 会话对象
-     * @param userId  请求头 X-User-Id（可选）
-     * @return Result 包含购物车列表（商品项 + 数量 + 小计）的成功响应
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的购物车数据Map，包含items（商品列表）、totalPrice（总价）等
      */
-    // @GetMapping：将 HTTP GET 请求映射到 /api/orders/cart
+    // @GetMapping：将HTTP GET请求映射到/api/orders/cart路径
     @GetMapping("/cart")
-    public Result<?> cart(HttpSession session,
-                          @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后获取其购物车数据
+    public Result<?> cart(
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务获取购物车内容
         return orderService.getCart(getUserId(session, userId));
     }
 
     /**
-     * 将商品添加到购物车
+     * 添加商品到购物车
      *
-     * @param cartItem 请求体，包含商品 ID (productId) 和数量 (quantity) 等信息
-     * @param session  HTTP 会话对象
-     * @param userId   请求头 X-User-Id（可选）
-     * @return Result 空成功响应
+     * @param cartItem 购物车项数据Map，包含productId（商品ID）和quantity（数量）
+     * @param session  HTTP会话对象
+     * @param userId   请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
      */
-    // @PostMapping：将 HTTP POST 请求映射到 /api/orders/cart
+    // @PostMapping：将HTTP POST请求映射到/api/orders/cart路径
     @PostMapping("/cart")
-    public Result<Void> addToCart(@RequestBody Map<String, Object> cartItem,
-                                   HttpSession session,
-                                   @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后将商品项加入购物车
+    public Result<Void> addToCart(
+            // @RequestBody：购物车项数据通过请求体以JSON格式传入
+            @RequestBody Map<String, Object> cartItem,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务添加商品到购物车
         return orderService.addToCart(getUserId(session, userId), cartItem);
     }
 
     /**
-     * 更新购物车中某个商品项的数量或其他属性
+     * 根据购物车项ID更新商品数量
      *
-     * @param itemId  购物车项的主键 ID（路径变量）
-     * @param update  请求体，包含要更新的字段（如 quantity 新数量）
-     * @param session HTTP 会话对象
-     * @param userId  请求头 X-User-Id（可选）
-     * @return Result 空成功响应
+     * @param itemId  购物车项ID，作为URL路径变量
+     * @param update  更新数据Map，包含quantity（新数量）
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
      */
-    // @PutMapping：将 HTTP PUT 请求映射到 /api/orders/cart/{itemId}
+    // @PutMapping：将HTTP PUT请求映射到/api/orders/cart/{itemId}路径，PUT语义表示幂等更新
     @PutMapping("/cart/{itemId}")
-    public Result<Void> updateCartItem(@PathVariable Long itemId,
-                                        @RequestBody Map<String, Object> update,
-                                        HttpSession session,
-                                        @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后更新指定购物车项
+    public Result<Void> updateCartItemByItemId(
+            // @PathVariable：购物车项ID路径变量
+            @PathVariable Long itemId,
+            // @RequestBody：更新数据通过请求体传入
+            @RequestBody Map<String, Object> update,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务更新购物车项数量
         return orderService.updateCartItem(getUserId(session, userId), itemId, update);
     }
 
     /**
-     * 从购物车中删除指定商品项
+     * 根据商品ID更新购物车中的商品数量
+     * 与updateCartItemByItemId不同，此接口通过商品ID而非购物车项ID定位
      *
-     * @param itemId  购物车项的主键 ID（路径变量）
-     * @param session HTTP 会话对象
-     * @param userId  请求头 X-User-Id（可选）
-     * @return Result 空成功响应
+     * @param update  更新数据Map，包含productId（商品ID）和quantity（新数量）
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
      */
-    // @DeleteMapping：将 HTTP DELETE 请求映射到 /api/orders/cart/{itemId}
+    // @PutMapping：将HTTP PUT请求映射到/api/orders/cart路径
+    @PutMapping("/cart")
+    public Result<Void> updateCartItemByProductId(
+            // @RequestBody：更新数据通过请求体传入
+            @RequestBody Map<String, Object> update,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务根据商品ID更新购物车
+        return orderService.updateCartItemByProductId(getUserId(session, userId), update);
+    }
+
+    /**
+     * 删除购物车中的商品
+     * 支持两种方式定位：购物车项ID（Long类型）或商品ID（String类型）
+     * 如果itemId能解析为Long，则按购物车项ID删除；否则按商品ID删除
+     *
+     * @param itemId  购物车项ID或商品ID，作为URL路径变量
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
+     */
+    // @DeleteMapping：将HTTP DELETE请求映射到/api/orders/cart/{itemId}路径
     @DeleteMapping("/cart/{itemId}")
-    public Result<Void> deleteCartItem(@PathVariable Long itemId,
-                                        HttpSession session,
-                                        @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后删除指定购物车项
-        return orderService.deleteCartItem(getUserId(session, userId), itemId);
+    public Result<Void> deleteCartItem(
+            // @PathVariable：路径变量，可能是购物车项ID或商品ID
+            @PathVariable String itemId,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        try {
+            // 尝试将itemId解析为Long类型（购物车项ID）
+            Long id = Long.parseLong(itemId);
+            // 解析成功，按购物车项ID删除
+            return orderService.deleteCartItem(getUserId(session, userId), id);
+        } catch (NumberFormatException e) {
+            // 解析失败，说明itemId是商品ID（非数字），按商品ID删除
+            return orderService.deleteCartItemByProductId(getUserId(session, userId), itemId);
+        }
+    }
+
+    /**
+     * 清空购物车
+     * 删除当前用户购物车中的所有商品
+     *
+     * @param session HTTP会话对象
+     * @param userId  请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
+     */
+    // @DeleteMapping：将HTTP DELETE请求映射到/api/orders/cart/clear路径
+    @DeleteMapping("/cart/clear")
+    public Result<Void> clearCart(
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用订单服务清空购物车
+        return orderService.clearCart(getUserId(session, userId));
     }
 }

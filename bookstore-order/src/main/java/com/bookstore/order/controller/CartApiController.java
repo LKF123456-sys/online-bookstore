@@ -40,7 +40,7 @@ public class CartApiController {  // 购物车API控制器类
      * @return 购物车视图对象，包含商品列表和总数量
      */
     @GetMapping  // 处理GET请求，映射到 /api/cart
-    public Result<CartVO> getCart(@RequestAttribute("userId") String userId) {  // 从请求属性获取用户ID
+    public Result<CartVO> getCart(@RequestHeader(value = "X-User-Id", required = false) String userId) {  // 从请求属性获取用户ID
         return Result.success(cartService.getCart(userId));  // 调用服务层获取购物车数据并返回
     }
 
@@ -52,7 +52,7 @@ public class CartApiController {  // 购物车API控制器类
      * @return 操作成功返回空数据
      */
     @PostMapping  // 处理POST请求，映射到 /api/cart
-    public Result<Void> addToCart(@RequestAttribute("userId") String userId, @Valid @RequestBody CartAddDTO dto) {  // 从请求体获取购物车添加数据
+    public Result<Void> addToCart(@RequestHeader(value = "X-User-Id", required = false) String userId, @Valid @RequestBody CartAddDTO dto) {  // 从请求体获取购物车添加数据
         cartService.addToCart(userId, dto);  // 调用服务层添加商品到购物车
         return Result.success();  // 返回操作成功的空响应
     }
@@ -66,7 +66,7 @@ public class CartApiController {  // 购物车API控制器类
      */
     @PutMapping("/item")  // 处理PUT请求，映射到 /api/cart/item
     public Result<Void> updateQuantityByProductId(  // 通过商品ID更新数量的方法
-            @RequestAttribute("userId") String userId,  // 从请求属性获取用户ID
+            @RequestHeader(value = "X-User-Id", required = false) String userId,  // 从请求属性获取用户ID
             @RequestBody Map<String, Object> body) {  // 使用Map接收JSON请求体，灵活性更高
         String productId = (String) body.get("productId");  // 从Map中取出商品ID，强制转换为String类型
         Integer quantity = body.get("quantity") != null ? ((Number) body.get("quantity")).intValue() : 1;  // 取出数量，如果为空默认为1；Number转换兼容前端可能传入的各种数字类型
@@ -81,7 +81,7 @@ public class CartApiController {  // 购物车API控制器类
      * @return 操作成功返回空数据
      */
     @DeleteMapping("/item/{productId}")  // 处理DELETE请求，映射到 /api/cart/item/{productId}
-    public Result<Void> removeByProductId(@RequestAttribute("userId") String userId, @PathVariable String productId) {  // 获取用户ID和商品ID
+    public Result<Void> removeByProductId(@RequestHeader(value = "X-User-Id", required = false) String userId, @PathVariable String productId) {  // 获取用户ID和商品ID
         cartService.removeByProductId(userId, productId);  // 调用服务层根据商品ID移除购物车项
         return Result.success();  // 返回操作成功的空响应
     }
@@ -95,7 +95,7 @@ public class CartApiController {  // 购物车API控制器类
      */
     @PutMapping("/{id}/quantity")  // 处理PUT请求，映射到 /api/cart/{id}/quantity
     public Result<Void> updateQuantity(  // 通过购物车项ID更新数量
-            @RequestAttribute("userId") String userId,  // 从请求属性获取用户ID
+            @RequestHeader(value = "X-User-Id", required = false) String userId,  // 从请求属性获取用户ID
             @PathVariable String id,  // 从URL路径获取购物车项ID
             @RequestParam Integer quantity) {  // 从URL查询参数获取新数量
         cartService.updateQuantity(userId, id, quantity);  // 调用服务层更新数量
@@ -109,7 +109,7 @@ public class CartApiController {  // 购物车API控制器类
      * @return 操作成功返回空数据
      */
     @DeleteMapping("/{id}")  // 处理DELETE请求，映射到 /api/cart/{id}
-    public Result<Void> removeFromCart(@RequestAttribute("userId") String userId, @PathVariable String id) {  // 获取用户ID和购物车项ID
+    public Result<Void> removeFromCart(@RequestHeader(value = "X-User-Id", required = false) String userId, @PathVariable String id) {  // 获取用户ID和购物车项ID
         cartService.removeFromCart(userId, id);  // 调用服务层移除购物车项
         return Result.success();  // 返回操作成功的空响应
     }
@@ -121,7 +121,7 @@ public class CartApiController {  // 购物车API控制器类
      * @return 操作成功返回空数据
      */
     @DeleteMapping("/clear")  // 处理DELETE请求，映射到 /api/cart/clear
-    public Result<Void> clearCart(@RequestAttribute("userId") String userId) {  // 获取用户ID
+    public Result<Void> clearCart(@RequestHeader(value = "X-User-Id", required = false) String userId) {  // 获取用户ID
         cartService.clearCart(userId);  // 调用服务层清空购物车
         return Result.success();  // 返回操作成功的空响应
     }

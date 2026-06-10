@@ -29,7 +29,7 @@ public class Account {  // 用户账户实体类
     private String country;  // 所在国家
     private String phone;  // 联系电话
     private String role; // 用户角色：admin-管理员 user-普通用户
-    @TableField("created_at")  // 字段映射注解，指定Java字段对应的数据库列名为"created_at"
+    @TableField(value = "created_at", fill = FieldFill.INSERT)  // 字段映射注解，指定数据库列名并设置插入时自动填充
     private LocalDateTime createdAt;  // 账号创建时间
     private String avatar;  // 用户头像URL地址
 }

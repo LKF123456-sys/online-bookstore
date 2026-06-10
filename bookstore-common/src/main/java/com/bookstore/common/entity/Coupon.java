@@ -30,6 +30,6 @@ public class Coupon {  // 优惠券实体类
     @TableField("end_time")  // 字段映射注解，指定Java字段对应的数据库列名为"end_time"
     private LocalDateTime endTime;  // 优惠券生效结束时间
     private Integer status;  // 优惠券状态：0-禁用 1-启用
-    @TableField("create_time")  // 字段映射注解，指定Java字段对应的数据库列名为"create_time"
+    @TableField(value = "create_time", fill = FieldFill.INSERT)  // 字段映射注解，指定数据库列名并设置插入时自动填充
     private LocalDateTime createTime;  // 优惠券创建时间
 }

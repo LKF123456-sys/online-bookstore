@@ -51,7 +51,7 @@ public class ReviewApiController {  // 图书评价API控制器类
      * @return 操作结果
      */
     @PostMapping  // 映射POST请求到 /api/review（使用控制器的前缀）
-    public Result<Void> submitReview(@RequestAttribute("userId") String userId, @Valid @RequestBody ReviewSubmitDTO dto) {  // userId从请求属性获取，dto从请求体JSON反序列化并自动校验
+    public Result<Void> submitReview(@RequestHeader(value = "X-User-Id", required = false) String userId, @Valid @RequestBody ReviewSubmitDTO dto) {  // userId从请求头获取，dto从请求体JSON反序列化并自动校验
         bookReviewService.submitReview(userId, dto);  // 调用服务层提交评价
         return Result.success();  // 提交成功，返回成功响应
     }
@@ -67,7 +67,7 @@ public class ReviewApiController {  // 图书评价API控制器类
      */
     @GetMapping("/my")  // 映射GET请求到 /api/review/my
     public Result<PageResult<ReviewVO>> getUserReviews(
-            @RequestAttribute("userId") String userId,  // 从请求属性中获取当前登录用户的ID
+            @RequestHeader(value = "X-User-Id", required = false) String userId,  // 从请求头中获取当前登录用户的ID
             @RequestParam(defaultValue = "1") Integer pageNum,  // 从请求参数获取页码，未传时默认为1
             @RequestParam(defaultValue = "10") Integer pageSize) {  // 从请求参数获取每页大小，未传时默认为10
         return Result.success(bookReviewService.getUserReviews(userId, pageNum, pageSize));  // 调用服务层获取用户评价列表，包装成成功响应返回

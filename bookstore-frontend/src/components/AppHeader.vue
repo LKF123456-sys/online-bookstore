@@ -1,115 +1,303 @@
 <template>
-  <!-- ==================== 顶部导航栏 ==================== -->
-  <!--
-    导航栏结构说明：
-    - 左侧 Logo：点击跳转到首页，整体为 router-link
-    - 右侧导航区：全部图书、购物车等链接 + 登录/未登录状态判断
-  -->
-  <header class="header">
-    <div class="container header-inner">
-
-      <!-- Logo 区域：router-link 包裹，点击跳转到首页(/)  -->
+  <n-layout-header bordered class="app-header">
+    <div class="header-content container">
       <router-link to="/" class="logo">
-        <span class="logo-bracket">&lt;</span>
+        <div class="logo-icon">
+          <n-icon size="24">
+            <BookOutline />
+          </n-icon>
+        </div>
         <span class="logo-text">BookVerse</span>
-        <span class="logo-bracket">/&gt;</span>
       </router-link>
 
-      <!-- 导航链接区域 -->
-      <nav class="nav">
-        <!-- 公共导航：所有用户可见 -->
-        <router-link to="/products">[全部图书]</router-link>
-        <router-link to="/cart">[购物车]</router-link>
+      <n-space align="center" :size="8" class="nav-links">
+        <router-link to="/" class="nav-link" active-class="active">首页</router-link>
+        <router-link to="/products" class="nav-link" active-class="active">商品</router-link>
+        <router-link to="/coupons" class="nav-link" active-class="active">优惠券</router-link>
+        <a v-if="isAdmin" :href="adminUrl" target="_blank" class="nav-link admin-link">
+          <n-icon size="14"><SettingsOutline /></n-icon>
+          管理后台
+        </a>
+      </n-space>
 
-        <!--
-          v-if/v-else 条件渲染：根据 auth.isLoggedIn 判断当前是否已登录
-          - auth.isLoggedIn 是 Pinia store 中的 getter，通过 !!token.value 计算得到
-          - 已登录时显示：我的订单、评价、个人资料、管理后台（管理员可见）、登出按钮
-          - 未登录时显示：登录按钮
-        -->
-        <template v-if="auth.isLoggedIn">
-          <router-link to="/orders">[我的订单]</router-link>
-          <router-link to="/reviews">[评价]</router-link>
-          <!-- 显示用户名，点击跳转个人资料页 -->
-          <router-link to="/profile">{{ auth.displayName }}</router-link>
-          <!-- auth.isAdmin 判断当前用户是否为管理员（user.role === 'admin'），仅管理员可见 -->
-          <router-link v-if="auth.isAdmin" to="/admin/login" class="admin-link">[管理后台]</router-link>
-          <!-- 登出按钮，点击触发 handleLogout 函数 -->
-          <button class="btn btn-outline btn-sm" @click="handleLogout">登出</button>
+      <n-space align="center" :size="16" class="header-actions">
+        <!-- Cart -->
+        <router-link to="/cart" class="nav-link icon-link">
+          <n-badge :value="cartStore.itemCount" :max="99" :show="cartStore.itemCount > 0">
+            <n-icon size="22">
+              <CartOutline />
+            </n-icon>
+          </n-badge>
+        </router-link>
+
+        <!-- Auth section -->
+        <template v-if="authStore.isLoggedIn">
+          <!-- Orders -->
+          <router-link to="/orders" class="nav-link icon-link">
+            <n-icon size="22">
+              <ReceiptOutline />
+            </n-icon>
+          </router-link>
+
+          <!-- Messages -->
+          <router-link to="/messages" class="nav-link icon-link">
+            <n-badge :value="messageStore.unreadCount" :max="99" :show="messageStore.unreadCount > 0">
+              <n-icon size="22">
+                <MailOutline />
+              </n-icon>
+            </n-badge>
+          </router-link>
+
+          <!-- User dropdown -->
+          <n-dropdown :options="userMenuOptions" @select="handleUserMenu">
+            <n-button text class="user-btn">
+              <n-icon size="22">
+                <PersonCircleOutline />
+              </n-icon>
+              <span style="margin-left: 6px">{{ authStore.username }}</span>
+            </n-button>
+          </n-dropdown>
         </template>
 
         <template v-else>
-          <!-- 未登录状态：仅显示登录按钮 -->
-          <router-link to="/login" class="btn btn-primary btn-sm">登录</router-link>
+          <router-link to="/login">
+            <n-button type="primary" size="small" class="login-btn">登录</n-button>
+          </router-link>
+          <router-link to="/register">
+            <n-button size="small" class="register-btn">注册</n-button>
+          </router-link>
         </template>
-      </nav>
+      </n-space>
     </div>
-  </header>
+  </n-layout-header>
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from '../stores/auth'
+import { h, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  BookOutline,
+  CartOutline,
+  ReceiptOutline,
+  MailOutline,
+  PersonCircleOutline,
+  SettingsOutline,
+} from '@vicons/ionicons5'
+import { useAuthStore } from '@/stores/auth'
+import { useCartStore } from '@/stores/cart'
+import { useMessageStore } from '@/stores/message'
+import { getCart } from '@/api/cart'
 
-// 获取 Pinia auth store 实例，用于读取登录状态、用户信息和管理员判断
-const auth = useAuthStore()
-// 获取 vue-router 的 router 实例，用于编程式导航
 const router = useRouter()
+const authStore = useAuthStore()
+const cartStore = useCartStore()
+const messageStore = useMessageStore()
 
-/**
- * 登出处理函数：
- * 1. 调用 auth.logout() 清除 store 中的 token 和用户信息，并移除 localStorage 中的持久化数据
- * 2. 调用 router.push('/') 将页面导航回首页
- */
-function handleLogout() {
-  auth.logout()
-  router.push('/')
+const isAdmin = computed(() => authStore.isLoggedIn && authStore.user?.role === 'admin')
+
+// 管理后台地址：开发环境端口5174，生产环境端口81
+const adminUrl = computed(() => {
+  const { protocol, hostname } = window.location
+  const isDev = import.meta.env.DEV
+  const port = isDev ? ':5174' : ':81'
+  return `${protocol}//${hostname}${port}/`
+})
+
+const userMenuOptions = [
+  { label: '个人中心', key: 'profile' },
+  { label: '我的订单', key: 'orders' },
+  { label: '我的评价', key: 'reviews' },
+  { label: '我的优惠券', key: 'coupons' },
+  { type: 'divider', key: 'd1' },
+  { label: '退出登录', key: 'logout' },
+]
+
+function handleUserMenu(key: string) {
+  switch (key) {
+    case 'profile':
+      router.push('/profile')
+      break
+    case 'orders':
+      router.push('/orders')
+      break
+    case 'reviews':
+      router.push('/reviews')
+      break
+    case 'coupons':
+      router.push('/coupons')
+      break
+    case 'logout':
+      authStore.logout()
+      cartStore.clearItems()
+      messageStore.clearUnread()
+      router.push('/')
+      break
+  }
 }
+
+onMounted(async () => {
+  if (authStore.isLoggedIn) {
+    try {
+      const cart = await getCart()
+      cartStore.setItems(cart.items || [])
+    } catch {
+      // silently fail
+    }
+    messageStore.fetchUnreadCount()
+  }
+})
 </script>
 
 <style scoped>
-/* 顶部导航栏容器：毛玻璃背景 + 底部边框 + 吸顶定位（sticky，层级 100） */
-.header {
-  background: rgba(6, 6, 18, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 100;
+.app-header {
+  background: rgba(10, 14, 26, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
-/* 导航栏内部使用 flex 两端对齐，高度 64px */
-.header-inner {
-  display: flex; align-items: center; justify-content: space-between;
-  height: 64px;
+
+.header-content {
+  display: flex;
+  align-items: center;
+  height: 70px;
+  justify-content: space-between;
 }
-/* Logo 样式：flex 排列，等宽字体，主题色，发光阴影 */
+
 .logo {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 20px; font-weight: 700; color: var(--primary);
-  font-family: var(--font-mono);
-  text-shadow: 0 0 15px var(--primary-glow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
 }
-/* Logo 两侧的 <> 括号装饰 */
-.logo-bracket { color: var(--text-dim); font-weight: 400; }
-.logo:hover { color: #fff; text-shadow: 0 0 25px var(--primary-glow); }
-.logo:hover .logo-bracket { color: var(--primary); }
-/* 导航链接容器：flex 水平排列，间距 16px */
-.nav {
-  display: flex; align-items: center; gap: 16px; font-size: 13px;
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #6366f1, #00d4ff);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+  animation: brandPulse 3s ease-in-out infinite;
 }
-/* 导航链接基础样式：等宽字体，过渡动画 */
-.nav a {
-  color: var(--text-secondary); transition: all .25s;
-  font-family: var(--font-mono); font-size: 12px;
-  letter-spacing: .5px;
+
+@keyframes brandPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4); }
+  50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.6); }
 }
-.nav a:hover { color: var(--primary); text-shadow: 0 0 10px var(--primary-glow); }
-/* 当前激活路由高亮为主题色 */
-.nav a.router-link-active { color: var(--primary); }
-/* 管理后台链接：强调色（accent） */
-.admin-link { color: var(--accent) !important; }
-.admin-link:hover { color: #fff !important; text-shadow: 0 0 10px var(--accent-glow) !important; }
-/* 移动端适配：缩小间距并允许横向滚动 */
-@media (max-width: 768px) {
-  .nav { gap: 10px; font-size: 11px; overflow-x: auto; }
+
+.logo-text {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #f1f5f9, #00d4ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav-links {
+  flex: 1;
+  margin-left: 40px;
+}
+
+.nav-link {
+  color: #94a3b8;
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.08);
+}
+
+.nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: #00d4ff;
+  border-radius: 1px;
+  box-shadow: 0 0 10px #00d4ff;
+}
+
+.icon-link {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+}
+
+.user-btn {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  color: #94a3b8;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.user-btn:hover {
+  color: #f1f5f9;
+  background: rgba(99, 102, 241, 0.08);
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.admin-link {
+  color: #a78bfa;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(167, 139, 250, 0.08);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+.admin-link:hover {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.15);
+  border-color: rgba(167, 139, 250, 0.4);
+  box-shadow: 0 0 15px rgba(167, 139, 250, 0.2);
+}
+
+.login-btn {
+  background: linear-gradient(135deg, #6366f1, #00d4ff);
+  border: none;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+}
+
+.login-btn:hover {
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.5);
+}
+
+.register-btn {
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #a5b4fc;
+}
+
+.register-btn:hover {
+  border-color: #6366f1;
+  color: #6366f1;
 }
 </style>

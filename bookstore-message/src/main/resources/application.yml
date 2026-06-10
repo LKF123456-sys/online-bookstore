@@ -80,9 +80,6 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto  # 主键生成策略为数据库自增（AUTO_INCREMENT）
-      logic-delete-field: deleted  # 逻辑删除字段名为deleted
-      logic-delete-value: 1  # 逻辑删除的值为1（表示已删除）
-      logic-not-delete-value: 0  # 逻辑未删除的值为0（表示正常）
   mapper-locations: classpath:mapper/*.xml  # Mapper XML文件的位置，MyBatis会扫描classpath下mapper目录中的所有XML文件
 
 # ========== Actuator监控端点配置 ==========

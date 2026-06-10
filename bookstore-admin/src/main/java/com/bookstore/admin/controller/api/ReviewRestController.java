@@ -1,175 +1,170 @@
-package com.bookstore.admin.controller.api;
+package com.bookstore.admin.controller.api; // 声明当前接口所属的包路径：REST API控制器层
 
+// 导入促销服务类，处理评价、优惠券、公告等营销业务逻辑
 import com.bookstore.admin.service.PromotionService;
+// 导入公共模块的统一响应封装类Result，所有接口返回值都通过此类包装
 import com.bookstore.common.api.Result;
+// 导入业务异常类，用于抛出业务逻辑相关的异常（如未登录、权限不足等）
 import com.bookstore.common.exception.BusinessException;
+// 导入Jakarta Servlet的HTTP会话接口，用于获取当前登录用户信息
 import jakarta.servlet.http.HttpSession;
+// 导入Lombok的@RequiredArgsConstructor注解，为所有final字段生成构造函数
 import lombok.RequiredArgsConstructor;
+// 导入Lombok的@Slf4j注解，自动生成log日志对象
 import lombok.extern.slf4j.Slf4j;
+// 导入Spring MVC的REST相关注解
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
+import java.util.Map; // 导入Java集合框架的Map接口
 
 /**
  * 评价 REST API 控制器
- * <p>
- * 职责：为 Vue 前端提供商品评价相关的 RESTful 接口，包括提交评价、
- *       查看用户评价列表、查看商品评价列表、删除评价。
- * <p>
- * 所属模块：bookstore-admin · controller · api
- * <p>
- * 说明：评价业务逻辑委托给 PromotionService（促销服务）统一处理，
- *       评价与促销 / 优惠券等共用一个 Service 层。
- * <p>
- * 用户身份获取：通过私有方法 getUserId() 统一处理，
- *       优先从请求头 X-User-Id（JWT 解析结果）获取，其次从 Session 获取。
- * <p>
- * 包含接口：
- * <ul>
- *   <li>POST   /api/reviews                    — 提交评价</li>
- *   <li>GET    /api/reviews                    — 当前用户评价列表</li>
- *   <li>GET    /api/reviews/product/{productId} — 商品评价列表</li>
- *   <li>DELETE /api/reviews/{reviewId}         — 删除评价</li>
- * </ul>
- *
- * @author bookstore
+ * 为Vue前端提供商品评价相关的RESTful接口，包括提交评价、查看评价、删除评价等。
+ * 用户身份优先从请求头X-User-Id获取（JWT认证模式），其次从Session获取（兼容模式）。
  */
-// @Slf4j：Lombok 注解，自动生成 log 日志对象，用于记录运行时日志
-@Slf4j
-// @RestController：Spring MVC 注解，标识该类为 REST 控制器，
-// 所有方法返回值自动序列化为 JSON 响应体
-@RestController
-// @RequestMapping：将控制器映射到 /api/reviews 路径下，所有接口 URL 以此为前缀
-@RequestMapping("/api/reviews")
-// @RequiredArgsConstructor：Lombok 注解，为所有 final 字段生成构造方法，
-// Spring 自动注入对应的 Bean
-@RequiredArgsConstructor
+@Slf4j // Lombok注解，自动生成log日志对象
+@RestController // 标记为REST控制器，返回值自动序列化为JSON响应体
+@RequestMapping("/api/reviews") // 设置该控制器所有接口的URL前缀为/api/reviews
+@RequiredArgsConstructor // Lombok自动生成包含final字段的构造函数，实现构造函数注入
 public class ReviewRestController {
 
-    // 促销服务层依赖，评价相关业务逻辑（提交、查询、删除）均委托给该服务处理
+    // 注入促销服务，处理评价相关的业务逻辑
     private final PromotionService promotionService;
 
-    // ========================================================================
-    // 用户身份辅助方法
-    // ========================================================================
-
     /**
-     * 获取当前请求用户的 ID
-     * <p>
-     * 优先从请求头 X-User-Id 获取（由 JWT 过滤器 / 网关解析后注入），
-     * 其次从 HTTP Session 的用户对象中提取 userid 字段。
+     * 获取当前登录用户的ID（私有辅助方法）
+     * 优先从请求头X-User-Id获取（由JWT过滤器/网关解析后注入），
+     * 其次从HTTP Session的user对象中提取userid字段。
      * 两种方式均失败则抛出未登录异常。
      *
-     * @param session      HTTP 会话对象，用于兼容模式下读取 user 属性
-     * @param headerUserId 请求头 X-User-Id 的值，可为 null
-     * @return 当前登录用户的 ID 字符串
+     * @param session      HTTP会话对象，用于兼容模式下读取user属性
+     * @param headerUserId 请求头X-User-Id的值，可为null
+     * @return 当前登录用户的ID字符串
      * @throws BusinessException(401) 当用户未登录或无法识别身份时
      */
     private String getUserId(HttpSession session, @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
-        // 优先使用请求头中的用户 ID（JWT 无状态认证模式）
+        // 优先使用请求头中的用户ID（JWT无状态认证模式）
         if (headerUserId != null && !headerUserId.isEmpty()) return headerUserId;
-        // 回退到 Session 模式：从会话中获取登录时存入的 user 对象
+        // 回退到Session模式：从会话中获取登录时存入的user对象
         Map<String, Object> user = (Map<String, Object>) session.getAttribute("user");
-        // 若 Session 中有 user 对象，提取其中的 userid 字段作为用户标识
+        // 若Session中有user对象，提取其中的userid字段作为用户标识
         if (user != null) return String.valueOf(user.get("userid"));
-        // 无法识别用户身份，抛出 401 异常
+        // 无法识别用户身份，抛出401未登录异常
         throw new BusinessException(401, "请先登录");
     }
 
-    // ========================================================================
-    // 提交评价接口
-    // ========================================================================
-
     /**
      * 提交商品评价
-     * <p>
-     * 接收评价数据（商品 ID、评分、评价内容等），校验后写入数据库。
-     * 通常限制同一用户对同一订单中的同一商品只能评价一次。
+     * 用户对已购买的商品进行评分和文字评价
      *
-     * @param reviewData 请求体，包含评价数据 Map（productId、rating、content 等）
-     * @param session    HTTP 会话对象，用于获取当前用户 ID
-     * @param userId     请求头 X-User-Id（可选）
-     * @return Result 空成功响应，表示评价提交成功
+     * @param reviewData 评价数据Map，包含productId（商品ID）、rating（评分1-5）、content（评价内容）等
+     * @param session    HTTP会话对象
+     * @param userId     请求头X-User-Id（可选）
+     * @return Result 包装的空返回体，表示提交成功或失败
      */
-    // @PostMapping：将 HTTP POST 请求映射到 /api/reviews
+    // @PostMapping：将HTTP POST请求映射到/api/reviews路径，POST语义表示创建新资源
     @PostMapping
-    // @RequestBody：将 HTTP 请求体 JSON 反序列化为 Map 对象
-    public Result<Void> submit(@RequestBody Map<String, Object> reviewData,
-                                HttpSession session,
-                                @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后委托 PromotionService 提交评价
+    public Result<Void> submit(
+            // @RequestBody：评价数据通过请求体以JSON格式传入
+            @RequestBody Map<String, Object> reviewData,
+            // 注入HTTP会话对象，用于获取用户身份
+            HttpSession session,
+            // @RequestHeader：从请求头X-User-Id获取用户ID（可选，由网关注入）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用促销服务提交评价，getUserId解析用户身份
         return promotionService.submitReview(getUserId(session, userId), reviewData);
     }
 
-    // ========================================================================
-    // 用户评价列表接口
-    // ========================================================================
-
     /**
-     * 获取当前登录用户的评价列表（分页）
-     * <p>
-     * 用户在"我的评价"页面查看自己发表过的所有评价。
+     * 获取当前用户的评价列表（分页）
      *
-     * @param pageNum  页码，默认第 1 页
-     * @param pageSize 每页条数，默认 10 条
-     * @param session  HTTP 会话对象
-     * @param userId   请求头 X-User-Id（可选）
-     * @return Result 包含分页评价列表的成功响应
+     * @param pageNum 页码（从1开始），默认值为1
+     * @param pageSize 每页条数，默认值为10
+     * @param session HTTP会话对象
+     * @param userId 请求头X-User-Id（可选）
+     * @return Result 包装的分页评价数据Map
      */
-    // @GetMapping：将 HTTP GET 请求映射到 /api/reviews
+    // @GetMapping：将HTTP GET请求映射到/api/reviews路径
     @GetMapping
-    public Result<Map<String, Object>> myReviews(@RequestParam(defaultValue = "1") int pageNum,
-                                                  @RequestParam(defaultValue = "10") int pageSize,
-                                                  HttpSession session,
-                                                  @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后查询该用户的所有评价（分页）
+    public Result<Map<String, Object>> myReviews(
+            // @RequestParam：页码，默认第1页
+            @RequestParam(defaultValue = "1") int pageNum,
+            // @RequestParam：每页条数，默认10条
+            @RequestParam(defaultValue = "10") int pageSize,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用促销服务查询当前用户的评价列表
         return promotionService.userReviews(getUserId(session, userId), pageNum, pageSize);
     }
 
-    // ========================================================================
-    // 商品评价列表接口
-    // ========================================================================
+    /**
+     * 获取当前用户的评价列表（别名路径，兼容不同前端调用方式）
+     * 功能与myReviews完全相同
+     *
+     * @param pageNum 页码（从1开始），默认值为1
+     * @param pageSize 每页条数，默认值为10
+     * @param session HTTP会话对象
+     * @param userId 请求头X-User-Id（可选）
+     * @return Result 包装的分页评价数据Map
+     */
+    // @GetMapping：将HTTP GET请求映射到/api/reviews/user路径
+    @GetMapping("/user")
+    public Result<Map<String, Object>> myReviewsAlias(
+            // @RequestParam：页码，默认第1页
+            @RequestParam(defaultValue = "1") int pageNum,
+            // @RequestParam：每页条数，默认10条
+            @RequestParam(defaultValue = "10") int pageSize,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 与myReviews逻辑完全相同，委托促销服务查询评价列表
+        return promotionService.userReviews(getUserId(session, userId), pageNum, pageSize);
+    }
 
     /**
-     * 获取指定商品的所有评价（分页）
-     * <p>
-     * 不需要用户登录，任何访客均可查看商品评价。
+     * 获取指定商品的评价列表（分页）
+     * 用于商品详情页展示该商品的所有用户评价
      *
-     * @param productId 商品 ID（路径变量），用于筛选该商品下的评价
-     * @param pageNum   页码，默认第 1 页
-     * @param pageSize  每页条数，默认 10 条
-     * @return Result 包含分页评价列表的成功响应
+     * @param productId 商品ID，作为URL路径变量
+     * @param pageNum   页码（从1开始），默认值为1
+     * @param pageSize  每页条数，默认值为10
+     * @return Result 包装的分页评价数据Map
      */
-    // @GetMapping：将 HTTP GET 请求映射到 /api/reviews/product/{productId}
+    // @GetMapping：将HTTP GET请求映射到/api/reviews/product/{productId}路径
     @GetMapping("/product/{productId}")
-    // @PathVariable：将 URL 路径中的 {productId} 占位符绑定到方法参数
-    public Result<Map<String, Object>> productReviews(@PathVariable String productId,
-                                                       @RequestParam(defaultValue = "1") int pageNum,
-                                                       @RequestParam(defaultValue = "10") int pageSize) {
-        // 委托 PromotionService 查询指定商品的评价列表（公开接口，无需登录）
+    public Result<Map<String, Object>> productReviews(
+            // @PathVariable：将URL路径中的{productId}占位符的值绑定到方法参数
+            @PathVariable String productId,
+            // @RequestParam：页码，默认第1页
+            @RequestParam(defaultValue = "1") int pageNum,
+            // @RequestParam：每页条数，默认10条
+            @RequestParam(defaultValue = "10") int pageSize) {
+        // 调用促销服务查询指定商品的评价列表（不需要用户身份）
         return promotionService.productReviews(productId, pageNum, pageSize);
     }
 
-    // ========================================================================
-    // 删除评价接口
-    // ========================================================================
-
     /**
-     * 删除指定评价
-     * <p>
-     * 仅允许评价的发表者本人删除自己的评价（Service 层做权限校验）。
+     * 删除评价
+     * 用户只能删除自己提交的评价，微服务端会校验评价归属
      *
-     * @param reviewId 评价主键 ID（路径变量）
-     * @param session  HTTP 会话对象
-     * @param userId   请求头 X-User-Id（可选）
-     * @return Result 空成功响应
+     * @param reviewId 评价主键ID，作为URL路径变量
+     * @param session  HTTP会话对象
+     * @param userId   请求头X-User-Id（可选）
+     * @return Result 包装的空返回体
      */
-    // @DeleteMapping：将 HTTP DELETE 请求映射到 /api/reviews/{reviewId}
+    // @DeleteMapping：将HTTP DELETE请求映射到/api/reviews/{reviewId}路径，DELETE语义表示删除资源
     @DeleteMapping("/{reviewId}")
-    public Result<Void> delete(@PathVariable Long reviewId,
-                                HttpSession session,
-                                @RequestHeader(value = "X-User-Id", required = false) String userId) {
-        // 解析用户 ID 后删除指定评价（Service 层负责校验是否为本人操作）
+    public Result<Void> delete(
+            // @PathVariable：将URL路径中的{reviewId}占位符的值绑定到方法参数
+            @PathVariable Long reviewId,
+            // 注入HTTP会话对象
+            HttpSession session,
+            // @RequestHeader：从请求头获取用户ID（可选）
+            @RequestHeader(value = "X-User-Id", required = false) String userId) {
+        // 调用促销服务删除评价，getUserId解析用户身份用于校验归属
         return promotionService.deleteReview(getUserId(session, userId), reviewId);
     }
 }

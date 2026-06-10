@@ -22,6 +22,6 @@ public class AdminLog {  // 管理操作日志实体类
     private String target;  // 操作对象，如商品ID、订单ID等
     private String detail;  // 操作详情，记录具体的操作内容
     private String ip;  // 操作者IP地址
-    @TableField("create_time")  // 字段映射注解，指定Java字段对应的数据库列名为"create_time"
+    @TableField(value = "create_time", fill = FieldFill.INSERT)  // 字段映射注解，指定数据库列名并设置插入时自动填充
     private LocalDateTime createTime;  // 操作时间
 }

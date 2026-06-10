@@ -52,6 +52,10 @@ spring:
           enabled: true  # 开启重试
           max-attempts: 3  # 最大重试次数为3次
           initial-interval: 1000  # 首次重试间隔时间（1秒）
+    # RabbitMQ连接不自动失败，允许服务在RabbitMQ不可用时正常启动
+    cache:
+      channel:
+        size: 0
 
   # ==================== Nacos服务注册与配置中心 ====================
   cloud:
@@ -76,9 +80,6 @@ mybatis-plus:
   global-config:
     db-config:
       id-type: auto  # 主键生成策略为自增（使用数据库的自增ID）
-      logic-delete-field: deleted  # 逻辑删除字段名为deleted
-      logic-delete-value: 1  # 逻辑删除的值为1（表示已删除）
-      logic-not-delete-value: 0  # 未逻辑删除的值为0（表示未删除）
   mapper-locations: classpath:mapper/*.xml  # MyBatis XML映射文件的位置
 
 # ==================== Actuator监控端点配置 ====================

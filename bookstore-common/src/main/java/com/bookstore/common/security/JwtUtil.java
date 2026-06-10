@@ -1,113 +1,109 @@
-package com.bookstore.common.security;  // 声明当前类所属的包路径
+package com.bookstore.common.security;
 
-import io.jsonwebtoken.*;  // 导入JJWT库的核心类
-import io.jsonwebtoken.security.Keys;  // 导入密钥生成工具
-import org.springframework.beans.factory.annotation.Value;  // 导入Spring的@Value注解，用于读取配置文件
-import org.springframework.stereotype.Component;  // 导入Spring的@Component注解，标记为Spring组件
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;  // 导入密钥接口
-import java.nio.charset.StandardCharsets;  // 导入字符编码类
-import java.util.Date;  // 导入日期类
-import java.util.HashMap;  // 导入HashMap集合
-import java.util.Map;  // 导入Map接口
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * JWT工具类
- * 提供JWT令牌的生成、解析和验证功能
- * JWT（JSON Web Token）是一种用于身份认证的令牌格式
+ * JWT 工具类
+ * 提供 JWT 令牌的生成、解析和验证功能。
+ * 密钥和过期时间通过配置文件注入，不硬编码。
  */
-@Component  // Spring注解，将该类注册为Spring Bean
-public class JwtUtil {  // JWT工具类
+@Component
+public class JwtUtil {
 
-    @Value("${jwt.secret:BookVerseSecretKey2024ForJWTTokenGenerationMustBe256BitsLongEnough}")  // 从配置文件读取JWT密钥，有默认值
-    private String secret;  // JWT签名密钥
+    @Value("${jwt.secret:BookVerseSecretKey2024ForJWTTokenGenerationMustBe256BitsLongEnough}")
+    private String secret;
 
-    @Value("${jwt.expiration:86400000}")  // 从配置文件读取JWT过期时间（毫秒），默认24小时
-    private Long expiration;  // JWT过期时间，单位毫秒
+    @Value("${jwt.expiration:86400000}")
+    private Long expiration;
 
-    /**
-     * 获取JWT签名密钥
-     * @return SecretKey密钥对象
-     */
-    private SecretKey getSigningKey() {  // 获取签名密钥方法
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));  // 将密钥字符串转换为HMAC-SHA密钥
+    private SecretKey getSigningKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
-     * 生成JWT令牌
-     * @param userId 用户ID
+     * 生成 JWT 令牌
+     * @param userId   用户ID（String 类型，与 Account.userid 一致）
      * @param username 用户名
-     * @param role 用户角色
-     * @return 生成的JWT令牌字符串
+     * @param role     用户角色（user / admin）
+     * @return JWT 令牌字符串
      */
-    public String generateToken(Long userId, String username, String role) {  // 生成JWT令牌方法
-        Map<String, Object> claims = new HashMap<>();  // 创建claims（声明）集合
-        claims.put("userId", userId);  // 将用户ID添加到claims中
-        claims.put("username", username);  // 将用户名添加到claims中
-        claims.put("role", role);  // 将用户角色添加到claims中
-        return Jwts.builder()  // 创建JWT构建器
-                .claims(claims)  // 设置claims
-                .subject(username)  // 设置主题（通常是用户名）
-                .issuedAt(new Date())  // 设置签发时间
-                .expiration(new Date(System.currentTimeMillis() + expiration))  // 设置过期时间
-                .signWith(getSigningKey())  // 使用密钥进行签名
-                .compact();  // 生成JWT令牌字符串
+    public String generateToken(String userId, String username, String role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("username", username);
+        claims.put("role", role);
+        return Jwts.builder()
+                .claims(claims)
+                .subject(username)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(getSigningKey())
+                .compact();
     }
 
     /**
-     * 解析JWT令牌
-     * @param token JWT令牌字符串
-     * @return Claims对象，包含令牌中的所有声明信息
+     * 解析并验证 JWT 令牌
+     * @param token JWT 令牌字符串
+     * @return Claims 对象
+     * @throws JwtException 令牌无效或已过期时抛出
      */
-    public Claims parseToken(String token) {  // 解析JWT令牌方法
-        return Jwts.parser()  // 创建JWT解析器
-                .verifyWith(getSigningKey())  // 设置验证密钥
-                .build()  // 构建解析器
-                .parseSignedClaims(token)  // 解析并验证签名
-                .getPayload();  // 获取claims（声明）内容
+    public Claims parseToken(String token) {
+        return Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     /**
-     * 从JWT令牌中获取用户ID
-     * @param token JWT令牌字符串
-     * @return 用户ID
+     * 从令牌中提取用户ID
      */
-    public Long getUserId(String token) {  // 获取用户ID方法
-        Claims claims = parseToken(token);  // 解析令牌获取claims
-        return claims.get("userId", Long.class);  // 从claims中提取用户ID
+    public String getUserId(String token) {
+        Claims claims = parseToken(token);
+        return claims.get("userId", String.class);
     }
 
     /**
-     * 从JWT令牌中获取用户名
-     * @param token JWT令牌字符串
-     * @return 用户名
+     * 从令牌中提取用户名
      */
-    public String getUsername(String token) {  // 获取用户名方法
-        Claims claims = parseToken(token);  // 解析令牌获取claims
-        return claims.getSubject();  // 从claims中获取主题（用户名）
+    public String getUsername(String token) {
+        Claims claims = parseToken(token);
+        return claims.getSubject();
     }
 
     /**
-     * 从JWT令牌中获取用户角色
-     * @param token JWT令牌字符串
-     * @return 用户角色
+     * 从令牌中提取角色
      */
-    public String getRole(String token) {  // 获取用户角色方法
-        Claims claims = parseToken(token);  // 解析令牌获取claims
-        return claims.get("role", String.class);  // 从claims中提取用户角色
+    public String getRole(String token) {
+        Claims claims = parseToken(token);
+        return claims.get("role", String.class);
     }
 
     /**
-     * 验证JWT令牌是否有效
-     * @param token JWT令牌字符串
-     * @return 有效返回true，无效返回false
+     * 验证令牌是否有效（签名正确且未过期）
      */
-    public boolean isTokenValid(String token) {  // 验证令牌有效性方法
+    public boolean isTokenValid(String token) {
         try {
-            Claims claims = parseToken(token);  // 尝试解析令牌
-            return !claims.getExpiration().before(new Date());  // 检查令牌是否已过期，未过期返回true
-        } catch (Exception e) {  // 捕获解析异常
-            return false;  // 解析失败说明令牌无效
+            Claims claims = parseToken(token);
+            return !claims.getExpiration().before(new Date());
+        } catch (Exception e) {
+            return false;
         }
+    }
+
+    /**
+     * 获取当前配置的过期时间（毫秒）
+     */
+    public Long getExpiration() {
+        return expiration;
     }
 }

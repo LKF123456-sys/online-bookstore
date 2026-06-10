@@ -27,6 +27,6 @@ public class Message {  // 消息实体类
     private String content;  // 消息内容
     @TableField("read_status")  // 字段映射注解，指定Java字段对应的数据库列名为"read_status"
     private Integer readStatus;  // 已读状态：0-未读 1-已读
-    @TableField("create_time")  // 字段映射注解，指定Java字段对应的数据库列名为"create_time"
+    @TableField(value = "create_time", fill = FieldFill.INSERT)  // 字段映射注解，指定数据库列名并设置插入时自动填充
     private LocalDateTime createTime;  // 消息创建时间
 }

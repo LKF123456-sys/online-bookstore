@@ -1,5 +1,6 @@
 package com.bookstore.common.api.dto;  // 声明当前类所属的包路径
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;  // 导入Lombok的@Data注解
 import java.math.BigDecimal;  // 导入BigDecimal类，用于精确表示金额
 import java.util.List;  // 导入List集合类
@@ -10,6 +11,7 @@ import java.util.List;  // 导入List集合类
  * 包括购物车商品、账单地址、收货地址、支付信息和优惠信息
  */
 @Data  // Lombok注解，自动生成getter、setter、toString等方法
+@JsonIgnoreProperties(ignoreUnknown = true)  // 忽略未知字段，允许前端传额外字段（如 billingAddress）
 public class OrderCreateDTO {  // 订单创建DTO类
 
     // ========== 商品来源（二选一） ==========

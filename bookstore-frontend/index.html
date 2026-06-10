@@ -1,54 +1,13 @@
-<!DOCTYPE html>
-<!-- lang="zh-CN" 指定页面语言为简体中文，有助于搜索引擎优化（SEO）和屏幕阅读器识别 -->
-<html lang="zh-CN">
-<head>
-  <!--
-    <meta charset="UTF-8" />：字符编码声明
-    设置为 UTF-8 万国码，确保中英文及特殊字符正常显示
-  -->
-  <meta charset="UTF-8" />
-  <!--
-    <meta name="viewport" ... />：视口（viewport）配置，移动端适配关键标签
-    width=device-width：视口宽度等于设备屏幕宽度（而非默认的 980px 等固定宽度）
-    initial-scale=1.0：初始缩放比例为 1（不缩放），确保在移动端以正确的比例显示
-  -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!--
-    <meta name="theme-color" content="#060612" />：浏览器主题色
-    设置浏览器地址栏、状态栏等 UI 区域的背景色为深蓝黑（#060612），与应用主题色一致
-    支持 Chrome/Edge 等移动和桌面端 PWA 安装后的主题色
-  -->
-  <meta name="theme-color" content="#060612" />
-  <!-- <title> 页面标题，显示在浏览器标签页上 -->
-  <title>BookVerse &lt;/&gt; 科技在线书城</title>
-  <!--
-    内联 <style> 标签：关键的防白闪（Flash of Unstyled Content）样式
-    在 CSS 文件加载之前立即设置背景色，避免在页面加载瞬间出现白色背景闪烁
-    html { background: #060612; } - 设置 html 根元素背景为深色
-    body { background: #060612; margin:0; } - 设置 body 背景为深色，去除默认外边距
-    #app { min-height: 100vh; } - 确保应用挂载容器至少撑满一屏高度
-  -->
-  <style>
-    /* 关键内联样式：在 CSS 文件加载前防止白色背景闪烁 */
-    html { background: #060612; }
-    body { background: #060612; margin:0; }
-    #app { min-height: 100vh; }
-  </style>
-</head>
-<body>
-  <!--
-    <div id="app"></div>：Vue 应用挂载点
-    这是一个空的 div 容器，Vue 应用会在运行时将整个应用渲染到此 DOM 节点内部
-    main.ts 中 app.mount('#app') 正是将 Vue 实例挂载到这个 id="app" 的元素上
-  -->
-  <div id="app"></div>
-  <!--
-    <script type="module" src="/src/main.ts"></script>：Vue 应用入口脚本
-    type="module" 告诉浏览器以 ES Module（ES 模块）方式加载此脚本
-    支持 import/export 语法，且自动启用严格模式
-    src="/src/main.ts" 指向 Vite 开发服务器下的入口 TypeScript 文件
-    Vite 会在开发模式下自动编译 .ts 文件为浏览器可执行的 JavaScript
-  -->
-  <script type="module" src="/src/main.ts"></script>
-</body>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>bookstore-frontend</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>

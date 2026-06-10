@@ -14,6 +14,7 @@ import java.time.LocalDateTime;  // 导入Java8日期时间类
  * MyBatis-Plus配置类
  * 配置分页插件和自动填充功能
  * 分页插件支持MySQL数据库的分页查询
+ * 自动填充支持多种命名风格的时间字段（createTime/createdAt 和 updateTime/updatedAt）
  */
 @Configuration  // Spring注解，标记该类为配置类
 public class MybatisPlusConfig {  // MyBatis-Plus配置类
@@ -31,7 +32,8 @@ public class MybatisPlusConfig {  // MyBatis-Plus配置类
 
     /**
      * 配置自动填充处理器
-     * 在插入和更新数据时自动填充createTime和updateTime字段
+     * 在插入和更新数据时自动填充createTime/createdAt和updateTime/updatedAt字段
+     * 支持两种命名风格，覆盖项目中所有实体的时间字段
      * @return MetaObjectHandler实例
      */
     @Bean  // Spring注解，将方法返回值注册为Spring Bean
@@ -40,12 +42,15 @@ public class MybatisPlusConfig {  // MyBatis-Plus配置类
             @Override  // 重写插入填充方法
             public void insertFill(MetaObject metaObject) {  // 插入数据时自动填充
                 this.strictInsertFill(metaObject, "createTime", LocalDateTime.class, LocalDateTime.now());  // 填充createTime为当前时间
+                this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, LocalDateTime.now());  // 填充createdAt为当前时间
                 this.strictInsertFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());  // 填充updateTime为当前时间
+                this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());  // 填充updatedAt为当前时间
             }
 
             @Override  // 重写更新填充方法
             public void updateFill(MetaObject metaObject) {  // 更新数据时自动填充
                 this.strictUpdateFill(metaObject, "updateTime", LocalDateTime.class, LocalDateTime.now());  // 填充updateTime为当前时间
+                this.strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());  // 填充updatedAt为当前时间
             }
         };
     }

@@ -49,7 +49,7 @@ public class CouponApiController {  // 优惠券API控制器类
      * @return 操作结果
      */
     @PostMapping("/{id}/claim")  // 映射POST请求到 /api/coupon/{id}/claim，{id}是路径变量
-    public Result<Void> claimCoupon(@RequestAttribute("userId") String userId, @PathVariable Long id) {  // userId从请求属性中获取（由网关注入），id从URL路径中获取
+    public Result<Void> claimCoupon(@RequestHeader(value = "X-User-Id", required = false) String userId, @PathVariable Long id) {  // userId从请求头中获取（由网关注入），id从URL路径中获取
         couponService.claimCoupon(userId, id);  // 调用服务层执行领取优惠券的逻辑
         return Result.success();  // 领取成功，返回成功响应（无返回数据）
     }
@@ -62,7 +62,7 @@ public class CouponApiController {  // 优惠券API控制器类
      * @return 用户的优惠券列表
      */
     @GetMapping("/my")  // 映射GET请求到 /api/coupon/my
-    public Result<List<CouponVO>> getUserCoupons(@RequestAttribute("userId") String userId) {  // 从请求属性中获取当前登录用户的ID
+    public Result<List<CouponVO>> getUserCoupons(@RequestHeader(value = "X-User-Id", required = false) String userId) {  // 从请求头中获取当前登录用户的ID
         return Result.success(couponService.getUserCoupons(userId));  // 调用服务层查询用户优惠券列表，包装成成功响应返回
     }
 }

@@ -68,8 +68,7 @@ public class ProductService {
      * @param productId 商品主键 ID
      * @return Result 包装的商品详情 Map
      */
-    public Result<Map<String, Object>> detail(Long productId) {
-        // 记录 DEBUG 日志：查询商品 ID，方便定位特定商品的查询问题
+    public Result<Map<String, Object>> detail(String productId) {
         log.debug("ProductService.detail: id={}", productId);
         return productFeignClient.detail(productId);
     }
@@ -170,7 +169,7 @@ public class ProductService {
      * @param data 要更新的商品数据 Map
      * @return Result 包装的空返回体
      */
-    public Result<Void> updateProduct(Long id, Map<String, Object> data) {
+    public Result<Void> updateProduct(String id, Map<String, Object> data) {
         return productFeignClient.updateProduct(id, data);
     }
 
@@ -182,7 +181,7 @@ public class ProductService {
      * @param id 商品主键 ID
      * @return Result 包装的空返回体
      */
-    public Result<Void> deleteProduct(Long id) {
+    public Result<Void> deleteProduct(String id) {
         return productFeignClient.deleteProduct(id);
     }
 
@@ -194,7 +193,7 @@ public class ProductService {
      * @param id 商品主键 ID
      * @return Result 包装的 SKU 列表
      */
-    public Result<List<Map<String, Object>>> getProductSkus(Long id) {
+    public Result<List<Map<String, Object>>> getProductSkus(String id) {
         return productFeignClient.getProductSkus(id);
     }
 }

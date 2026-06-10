@@ -51,4 +51,28 @@ public class OrderVO {  // 订单视图对象类
 
     // ========== 订单项 ==========
     private List<OrderItemVO> items;  // 订单项列表，包含订单中的所有商品
+
+    // ========== 便捷方法（用于前端展示，不改变存储） ==========
+    @com.fasterxml.jackson.annotation.JsonProperty("shippingAddress")  // 序列化为 "shippingAddress"
+    public String getShippingAddress() {  // 合并收货地址为单行字符串
+        StringBuilder sb = new StringBuilder();  // 创建字符串拼接器
+        if (shiptofirstname != null) sb.append(shiptofirstname).append(" ");  // 追加收货人名字
+        if (shiptolastname != null) sb.append(shiptolastname).append(" ");  // 追加收货人姓氏
+        if (shipaddr1 != null) sb.append(shipaddr1);  // 追加收货地址第一行
+        return sb.toString().trim();  // 去除尾部空格后返回
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("billingAddress")  // 序列化为 "billingAddress"
+    public String getBillingAddress() {  // 合并账单地址为单行字符串
+        StringBuilder sb = new StringBuilder();  // 创建字符串拼接器
+        if (billtofirstname != null) sb.append(billtofirstname).append(" ");  // 追加账单收件人名字
+        if (billtolastname != null) sb.append(billtolastname).append(" ");  // 追加账单收件人姓氏
+        if (billaddr1 != null) sb.append(billaddr1);  // 追加账单地址第一行
+        return sb.toString().trim();  // 去除尾部空格后返回
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("totalAmount")  // 序列化为 "totalAmount"
+    public java.math.BigDecimal getTotalAmount() {  // 获取订单总金额的便捷方法
+        return this.totalprice;  // 返回订单实付总价
+    }
 }

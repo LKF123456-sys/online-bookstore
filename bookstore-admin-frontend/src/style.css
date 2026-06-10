@@ -1,0 +1,76 @@
+/* =============================================
+   BookVerse 管理后台 - 赛博朋克主题
+   ============================================= */
+
+/* CSS 自定义属性 */
+:root {
+    --cyber-bg: #0a0e1a;
+    --cyber-bg-light: #111827;
+    --cyber-bg-card: rgba(17, 24, 39, 0.8);
+    --cyber-bg-glass: rgba(15, 23, 42, 0.6);
+    --cyber-surface: #1e293b;
+    --cyber-border: rgba(99, 102, 241, 0.2);
+    --cyber-border-glow: rgba(99, 102, 241, 0.4);
+
+    --neon-blue: #00d4ff;
+    --neon-purple: #a78bfa;
+    --neon-pink: #f472b6;
+    --neon-green: #34d399;
+    --neon-orange: #fb923c;
+    --neon-cyan: #22d3ee;
+
+    --primary: #6366f1;
+    --primary-light: #818cf8;
+    --primary-dark: #4338ca;
+    --primary-glow: rgba(99, 102, 241, 0.4);
+    --accent: #f59e0b;
+    --accent-glow: rgba(245, 158, 11, 0.4);
+    --danger: #ef4444;
+    --success: #10b981;
+    --warning: #f59e0b;
+
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-accent: #a5b4fc;
+
+    --shadow-neon: 0 0 20px rgba(99, 102, 241, 0.3);
+    --shadow-neon-lg: 0 0 40px rgba(99, 102, 241, 0.4);
+    --shadow-glow: 0 0 15px rgba(0, 212, 255, 0.3);
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+
+    --radius: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 24px;
+}
+
+/* 全局重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--cyber-bg);
+  color: var(--text-primary);
+}
+
+/* 网格背景 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    linear-gradient(rgba(99, 102, 241, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 102, 241, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
+}

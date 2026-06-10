@@ -12,6 +12,7 @@ import com.bookstore.common.security.JwtUtil;  // 导入JWT工具类，用于生
 import com.bookstore.common.util.PasswordUtil;  // 导入密码工具类，用于密码加密和校验
 import com.bookstore.user.mapper.AccountMapper;  // 导入用户账户Mapper接口，用于数据库操作
 import lombok.RequiredArgsConstructor;  // 导入Lombok注解，自动生成包含final字段的构造函数
+import lombok.extern.slf4j.Slf4j;  // 导入Lombok的Slf4j注解，自动生成log日志对象
 import org.springframework.beans.BeanUtils;  // 导入Spring的Bean工具类，用于对象属性的复制
 import org.springframework.data.redis.core.RedisTemplate;  // 导入Redis操作模板，用于操作Redis缓存（如存储Token等）
 import org.springframework.stereotype.Service;  // 导入Service注解，标记该类为Spring的服务层组件
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;  // 导入Stream的Collectors工具，用于
  * - @Service：标记为Spring的服务层组件，Spring会自动创建该类的实例（Bean）并管理其生命周期
  * - @RequiredArgsConstructor：Lombok注解，自动生成包含所有final字段的构造函数，实现依赖注入
  */
+@Slf4j  // Lombok注解，自动生成log日志对象，用于记录日志
 @Service  // 服务层注解，Spring会自动将该类注册为一个Bean，可以在控制器等地方注入使用
 @RequiredArgsConstructor  // Lombok注解，自动生成包含final成员变量的构造函数，用于Spring的构造函数依赖注入
 public class AccountService {
@@ -48,6 +50,7 @@ public class AccountService {
      * @throws IllegalArgumentException 当用户名不存在、密码错误或账号被禁用时抛出异常
      */
     public Map<String, Object> login(LoginDTO dto) {  // 登录方法，接收登录DTO，返回包含token和用户信息的Map
+        log.info("用户登录尝试 / User login attempt, username={}", dto.getUsername());
         // 根据用户名（userid）从数据库查询用户信息
         Account account = accountMapper.selectOne(
                 new LambdaQueryWrapper<Account>().eq(Account::getUserid, dto.getUsername()));  // 构建查询条件：userid = 传入的用户名
@@ -60,7 +63,7 @@ public class AccountService {
             throw new IllegalArgumentException("账号已被禁用");  // 抛出异常，提示账号已被禁用
         }
         // 登录验证通过，生成JWT Token（传入用户ID和角色信息）
-        String token = jwtUtil.generateToken(0L, account.getUserid(), account.getRole());  // 生成JWT Token，包含用户ID和角色
+        String token = jwtUtil.generateToken(account.getUserid(), account.getUserid(), account.getRole());  // 生成JWT Token，包含用户ID和角色
         // 创建结果Map，存放token和用户信息
         Map<String, Object> result = new HashMap<>();  // 创建一个HashMap用于存放返回结果
         result.put("token", token);  // 将生成的Token放入结果Map
@@ -77,6 +80,7 @@ public class AccountService {
      */
     @Transactional  // 事务注解，确保该方法在数据库事务中执行，出现异常时会自动回滚
     public void register(RegisterDTO dto) {  // 注册方法，接收注册DTO
+        log.info("用户注册尝试 / User registration attempt, username={}, email={}", dto.getUsername(), dto.getEmail());
         // 检查用户名是否已被占用
         if (accountMapper.selectOne(
                 new LambdaQueryWrapper<Account>().eq(Account::getUserid, dto.getUsername())) != null) {  // 查询数据库中是否已存在该用户名
@@ -105,9 +109,9 @@ public class AccountService {
      * @return 用户视图对象（UserVO），不包含密码等敏感信息
      * @throws IllegalArgumentException 当用户不存在时抛出异常
      */
-    public UserVO getUserById(Long id) {  // 查询用户信息方法，接收用户ID
-        // 根据ID从数据库查询用户，将Long类型的id转为String（因为数据库中userid是字符串类型）
-        Account account = accountMapper.selectById(String.valueOf(id));  // 将Long类型的id转为String后查询数据库
+    public UserVO getUserById(String id) {  // 查询用户信息方法，接收用户ID
+        // 根据ID从数据库查询用户
+        Account account = accountMapper.selectById(id);  // 直接用String类型的id查询数据库
         if (account == null) {  // 查询结果为空，说明用户不存在
             throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
         }
@@ -123,9 +127,10 @@ public class AccountService {
      * @throws IllegalArgumentException 当用户不存在或旧密码错误时抛出异常
      */
     @Transactional  // 事务注解，确保密码修改操作的原子性
-    public void updatePassword(Long userId, PasswordUpdateDTO dto) {  // 修改密码方法，接收用户ID和密码修改DTO
+    public void updatePassword(String userId, PasswordUpdateDTO dto) {  // 修改密码方法，接收用户ID和密码修改DTO
+        log.info("用户修改密码 / User password update, userId={}", userId);
         // 根据ID查询用户
-        Account account = accountMapper.selectById(String.valueOf(userId));  // 将Long类型的userId转为String后查询数据库
+        Account account = accountMapper.selectById(userId);  // 直接用String类型的userId查询数据库
         if (account == null) {  // 查询结果为空
             throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
         }
@@ -147,9 +152,10 @@ public class AccountService {
      * @throws IllegalArgumentException 当用户不存在时抛出异常
      */
     @Transactional  // 事务注解，确保资料修改操作的原子性
-    public void updateProfile(Long userId, UserVO vo) {  // 修改资料方法，接收用户ID和包含新资料的UserVO
+    public void updateProfile(String userId, UserVO vo) {  // 修改资料方法，接收用户ID和包含新资料的UserVO
+        log.info("用户修改资料 / User profile update, userId={}", userId);
         // 根据ID查询用户
-        Account account = accountMapper.selectById(String.valueOf(userId));  // 将Long类型的userId转为String后查询数据库
+        Account account = accountMapper.selectById(userId);  // 直接用String类型的userId查询数据库
         if (account == null) {  // 查询结果为空
             throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
         }
@@ -199,9 +205,10 @@ public class AccountService {
      * @throws IllegalArgumentException 当用户不存在时抛出异常
      */
     @Transactional  // 事务注解，确保状态修改操作的原子性
-    public void updateUserStatus(Long userId, Integer status) {  // 修改用户状态方法，接收用户ID和目标状态
+    public void updateUserStatus(String userId, Integer status) {  // 修改用户状态方法，接收用户ID和目标状态
+        log.info("管理员修改用户状态 / Admin updating user status, userId={}, status={}", userId, status);
         // 根据ID查询用户
-        Account account = accountMapper.selectById(String.valueOf(userId));  // 将Long类型的userId转为String后查询数据库
+        Account account = accountMapper.selectById(userId);  // 直接用String类型的userId查询数据库
         if (account == null) {  // 查询结果为空
             throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
         }
@@ -216,8 +223,9 @@ public class AccountService {
      * @param userId 用户ID
      */
     @Transactional  // 事务注解，确保删除操作的原子性
-    public void deleteUser(Long userId) {  // 删除用户方法，接收用户ID
-        accountMapper.deleteById(String.valueOf(userId));  // 将Long类型的userId转为String后，根据主键删除用户记录
+    public void deleteUser(String userId) {  // 删除用户方法，接收用户ID
+        log.info("管理员删除用户 / Admin deleting user, userId={}", userId);
+        accountMapper.deleteById(userId);  // 直接用String类型的userId删除记录
     }
 
     /**

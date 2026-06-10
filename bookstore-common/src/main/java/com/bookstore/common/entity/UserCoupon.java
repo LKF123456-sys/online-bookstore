@@ -19,7 +19,7 @@ public class UserCoupon {  // 用户优惠券实体类
     @TableField("user_id")  // 字段映射注解，指定Java字段对应的数据库列名为"user_id"
     private String userId;  // 用户ID，关联account表，标识领取优惠券的用户
     @TableField("coupon_id")  // 字段映射注解，指定Java字段对应的数据库列名为"coupon_id"
-    private Integer couponId;  // 优惠券ID，关联coupon表
+    private Long couponId;  // 优惠券ID，关联coupon表
     @TableField("is_used")  // 字段映射注解，指定Java字段对应的数据库列名为"is_used"
     private Integer isUsed;  // 是否已使用：0-未使用 1-已使用
     @TableField("grant_time")  // 字段映射注解，指定Java字段对应的数据库列名为"grant_time"

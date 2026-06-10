@@ -4,6 +4,9 @@ import com.bookstore.common.api.vo.ProductVO;  // 导入商品视图对象，用
 import com.bookstore.product.document.ProductDocument;  // 导入商品ES文档对象，对应Elasticsearch中的商品索引
 import com.bookstore.product.repository.ProductSearchRepository;  // 导入商品搜索仓库接口，提供基本的ES操作
 import lombok.RequiredArgsConstructor;  // 导入Lombok注解，自动生成构造函数
+import lombok.extern.slf4j.Slf4j;  // 导入Lombok的Slf4j注解，自动生成log日志对象
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;  // 导入条件属性注解，根据配置属性决定是否创建Bean
+import org.springframework.context.annotation.Primary;  // 导入Primary注解，当有多个同类型Bean时优先使用被标记的Bean
 import org.springframework.data.domain.Page;  // 导入Spring Data的分页对象
 import org.springframework.data.domain.PageRequest;  // 导入Spring Data的分页请求对象，用于指定页码和大小
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;  // 导入ES原生查询对象，支持构建复杂的ES查询
@@ -33,30 +36,19 @@ import java.util.stream.Collectors;  // 导入Java Stream的Collectors工具类
  *   - 索引商品：将商品数据写入ES索引
  *   - 删除商品：从ES索引中删除商品
  */
-@Service  // 标记为Spring的Service组件
-@RequiredArgsConstructor  // Lombok注解，自动生成构造函数实现依赖注入
-public class ElasticsearchService {  // Elasticsearch搜索服务类
+@Slf4j  // Lombok注解，自动生成名为log的SLF4J日志对象
+@Service  // 标记为Spring的Service层组件，注册为Spring容器中的Bean
+@Primary  // 标记为首选Bean，当有多个SearchService实现时优先使用本实现
+@RequiredArgsConstructor  // Lombok注解，自动生成包含所有final字段的构造函数
+@ConditionalOnProperty(name = "spring.data.elasticsearch.uris")  // 条件注解：只有配置了ES连接地址时才创建本Bean
+public class ElasticsearchService implements SearchService {  // Elasticsearch搜索服务类，实现SearchService接口
 
-    private final ElasticsearchOperations elasticsearchOperations;  // ES操作模板，用于执行复杂的搜索查询（通过构造函数注入）
-    private final ProductSearchRepository productSearchRepository;  // ES搜索仓库，提供基本的CRUD操作（通过构造函数注入）
+    private final ElasticsearchOperations elasticsearchOperations;  // ES操作模板，通过构造函数注入，用于执行ES搜索查询
+    private final ProductSearchRepository productSearchRepository;  // ES数据仓库，通过构造函数注入，用于基本的CRUD操作
 
-    /**
-     * 搜索商品
-     * 使用ES的multi_match查询，在商品名称和描述两个字段中进行全文搜索
-     * 支持自动纠错（fuzziness=AUTO），即使用户输入有小错误也能返回相关结果
-     *
-     * 工作原理：
-     *   1. ES会对关键词进行分词处理
-     *   2. 在name和description字段的倒排索引中查找匹配的分词
-     *   3. 根据相关性（TF-IDF等算法）计算每条结果的得分
-     *   4. 按得分降序返回结果
-     *
-     * @param keyword 搜索关键词
-     * @param pageNum 页码（从1开始）
-     * @param pageSize 每页数量
-     * @return 搜索匹配的商品列表
-     */
-    public List<ProductVO> searchProducts(String keyword, Integer pageNum, Integer pageSize) {  // 搜索商品的方法
+    @Override
+    public List<ProductVO> searchProducts(String keyword, Integer pageNum, Integer pageSize) {
+        log.info("搜索商品 / Searching products, keyword={}, pageNum={}, pageSize={}", keyword, pageNum, pageSize);
         // 构建ES原生查询
         NativeQuery query = NativeQuery.builder()  // 使用Builder模式构建查询
                 .withQuery(q -> q.multiMatch(m -> m  // 设置查询类型为multi_match（多字段匹配查询）
@@ -93,6 +85,7 @@ public class ElasticsearchService {  // Elasticsearch搜索服务类
      * @param document 商品文档对象，包含要索引的商品数据
      */
     public void indexProduct(ProductDocument document) {  // 索引商品到ES的方法
+        log.info("索引商品到ES / Indexing product to Elasticsearch, id={}, name={}", document.getId(), document.getName());
         productSearchRepository.save(document);  // 调用仓库的save方法，如果ID已存在则更新，不存在则插入
     }
 
@@ -103,6 +96,7 @@ public class ElasticsearchService {  // Elasticsearch搜索服务类
      * @param id 要删除的商品ID
      */
     public void deleteProduct(String id) {  // 从ES中删除商品的方法
+        log.info("从ES删除商品 / Deleting product from Elasticsearch, id={}", id);
         productSearchRepository.deleteById(id);  // 根据ID从ES索引中删除商品文档
     }
 }

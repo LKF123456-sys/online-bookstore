@@ -1,39 +1,71 @@
-# 多阶段构建
+# ============================================================
+# BookVerse 通用微服务 Dockerfile（多阶段构建）
+# 适用于所有 Java 微服务模块，通过 --build-arg MODULE=xxx 指定模块名
+#
+# 用法示例：
+#   docker build --build-arg MODULE=bookstore-gateway .
+#   docker build --build-arg MODULE=bookstore-user .
+# ============================================================
+
+# ---------- Stage 1: Maven 构建阶段 ----------
 FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /app
-COPY pom.xml .
-# 下载依赖（利用Docker缓存层）
-RUN mvn dependency:go-offline -B
-COPY src ./src
-RUN mvn package -DskipTests -B
 
-# 运行阶段
+# 先复制所有模块的 pom.xml，利用 Docker 缓存层加速依赖下载
+COPY pom.xml .
+COPY bookstore-common/pom.xml bookstore-common/
+COPY bookstore-gateway/pom.xml bookstore-gateway/
+COPY bookstore-user/pom.xml bookstore-user/
+COPY bookstore-product/pom.xml bookstore-product/
+COPY bookstore-order/pom.xml bookstore-order/
+COPY bookstore-promotion/pom.xml bookstore-promotion/
+COPY bookstore-message/pom.xml bookstore-message/
+COPY bookstore-admin/pom.xml bookstore-admin/
+
+# 预下载依赖（此层在 pom 不变时可复用缓存）
+RUN mvn dependency:go-offline -B || true
+
+# 复制完整源码并构建指定模块
+COPY . .
+ARG MODULE
+RUN mvn clean package -DskipTests -pl ${MODULE} -am -B
+
+# ---------- Stage 2: 运行时阶段 ----------
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-# 安装字体支持（验证码等需要）
-RUN apk add --no-cache tzdata fontconfig ttf-dejavu \
+# 安装时区数据和字体支持（验证码、日期处理等需要）
+RUN apk add --no-cache tzdata fontconfig ttf-dejavu curl \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
-    && echo "Asia/Shanghai" > /etc/timezone
+    && echo "Asia/Shanghai" > /etc/timezone \
+    && apk del tzdata
 
-# 创建非root用户
+# 创建非 root 用户运行应用（安全最佳实践）
 RUN addgroup -S bookstore && adduser -S bookstore -G bookstore
+
+ARG MODULE
+# 从构建阶段复制 jar 包
+COPY --from=builder /app/${MODULE}/target/*.jar app.jar
+
+# 设置文件归属
+RUN chown -R bookstore:bookstore /app
 USER bookstore
 
-# 复制构建产物
-COPY --from=builder /app/target/*.jar app.jar
-
-# 环境变量
-ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError"
+# 环境变量（可通过 docker-compose 或 -e 覆盖）
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/var/log/bookverse/heapdump.hprof"
 ENV SERVER_PORT=8080
-ENV DB_URL=jdbc:mysql://host.docker.internal:3306/bookstore
+ENV DB_URL="jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true"
 ENV DB_USERNAME=root
 ENV DB_PASSWORD=root
+ENV REDIS_HOST=redis
+ENV REDIS_PORT=6379
+ENV NACOS_SERVER_ADDR=nacos:8848
+ENV SPRING_PROFILES_ACTIVE=prod
 
-EXPOSE 8080
+EXPOSE ${SERVER_PORT}
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD wget -q --spider http://localhost:8080/actuator/health || exit 1
+# 健康检查（通过 Spring Boot Actuator）
+HEALTHCHECK --interval=30s --timeout=5s --retries=5 --start-period=45s \
+  CMD wget -q --spider http://localhost:${SERVER_PORT}/actuator/health || exit 1
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

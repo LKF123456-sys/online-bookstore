@@ -86,9 +86,7 @@ public class ProductRestController {
      */
     // @GetMapping：将 HTTP GET 请求映射到 /api/products/{id}
     @GetMapping("/{id}")
-    // @PathVariable：将 URL 路径中的 {id} 占位符绑定到方法参数
-    public Result<?> detail(@PathVariable Long id) {
-        // 委托 ProductService 查询商品详情
+    public Result<?> detail(@PathVariable String id) {
         return productService.detail(id);
     }
 

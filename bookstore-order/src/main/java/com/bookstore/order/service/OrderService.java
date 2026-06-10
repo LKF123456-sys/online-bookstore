@@ -29,7 +29,8 @@ import com.bookstore.order.mapper.OrdersMapper;
 // 导入商品服务的Feign客户端（用于远程调用商品服务）
 import com.bookstore.order.feign.ProductFeignClient;
 // 导入Lombok注解，自动生成构造函数
-import lombok.RequiredArgsConstructor;
+import com.bookstore.common.util.SnowflakeIdGenerator;
+import lombok.extern.slf4j.Slf4j;
 // 导入Spring的属性拷贝工具，用于对象之间的属性复制
 import org.springframework.beans.BeanUtils;
 // 导入Spring的Service注解，标记为业务层组件
@@ -55,13 +56,29 @@ import java.util.stream.Collectors;  // 导入Stream流的收集器工具
  * 事务管理：涉及数据修改的方法都使用了@Transactional注解，
  * 保证数据库操作的原子性（要么全部成功，要么全部回滚）
  */
-@Service  // 标记为Spring的Service层组件，会被Spring容器自动管理
-@RequiredArgsConstructor  // Lombok注解：自动生成包含所有final字段的构造函数，实现依赖注入
-public class OrderService {  // 订单服务类
+@Slf4j
+@Service
+public class OrderService {
 
-    private final OrdersMapper ordersMapper;  // 订单Mapper，用于操作订单表的数据库操作
-    private final OrderItemMapper orderItemMapper;  // 订单项Mapper，用于操作订单项表的数据库操作
-    private final ProductFeignClient productFeignClient;  // 商品服务的Feign客户端，用于远程调用商品服务
+    private final OrdersMapper ordersMapper;
+    private final OrderItemMapper orderItemMapper;
+    private final ProductFeignClient productFeignClient;
+    private final SnowflakeIdGenerator snowflakeIdGenerator;
+
+    /**
+     * 构造函数，通过参数注入所有依赖
+     * @param ordersMapper 订单数据访问层
+     * @param orderItemMapper 订单项数据访问层
+     * @param productFeignClient 商品服务Feign客户端
+     * @param snowflakeIdGenerator 雪花ID生成器
+     */
+    public OrderService(OrdersMapper ordersMapper, OrderItemMapper orderItemMapper,
+                        ProductFeignClient productFeignClient, SnowflakeIdGenerator snowflakeIdGenerator) {
+        this.ordersMapper = ordersMapper;
+        this.orderItemMapper = orderItemMapper;
+        this.productFeignClient = productFeignClient;
+        this.snowflakeIdGenerator = snowflakeIdGenerator;
+    }
 
     /**
      * 创建订单
@@ -330,10 +347,19 @@ public class OrderService {  // 订单服务类
         // 查询该订单的所有订单项
         List<OrderItem> items = orderItemMapper.selectList(  // 查询订单项列表
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getOrderid()));  // 条件：订单ID匹配
-        // 将订单项实体列表转换为订单项视图对象列表
+        // 将订单项实体列表转换为订单项视图对象列表，并补充商品图片信息
         vo.setItems(items.stream().map(item -> {  // 使用Stream流进行转换
             OrderItemVO itemVO = new OrderItemVO();  // 创建订单项视图对象
             BeanUtils.copyProperties(item, itemVO);  // 复制属性
+            // 通过商品服务获取商品图片URL，补充到订单项VO中（OrderItem实体没有image字段）
+            try {
+                Result<ProductVO> productResult = productFeignClient.getProductById(item.getProductId());  // 远程调用获取商品信息
+                if (productResult != null && productResult.getData() != null) {  // 判断返回结果是否有效
+                    itemVO.setImage(productResult.getData().getImageUrl());  // 设置商品图片URL
+                }
+            } catch (Exception e) {  // 如果远程调用失败
+                log.warn("获取商品图片失败, productId: {}", item.getProductId(), e);  // 记录警告日志，不影响订单返回
+            }
             return itemVO;  // 返回转换后的视图对象
         }).collect(Collectors.toList()));  // 收集为List并设置到订单视图对象中
         return vo;  // 返回完整的订单视图对象
@@ -362,10 +388,11 @@ public class OrderService {  // 订单服务类
      * 例如：20240101123045 + 1234 = "202401011230451234"
      * @return 18位的订单ID字符串
      */
-    private String generateOrderId() {  // 生成订单ID的私有方法
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");  // 定义日期时间格式：年月日时分秒
-        String timestamp = LocalDateTime.now().format(formatter);  // 将当前时间格式化为字符串
-        String random = String.format("%04d", new Random().nextInt(10000));  // 生成0-9999的随机数，不足4位前面补0
-        return timestamp + random;  // 拼接时间戳和随机数作为订单ID
+    /**
+     * 生成全局唯一的订单号
+     * 使用 Snowflake 算法，避免并发冲突
+     */
+    private String generateOrderId() {
+        return snowflakeIdGenerator.nextOrderId("ORD");
     }
 }

@@ -36,7 +36,7 @@ public class MessageApiController {  // 消息API控制器类
      */
     @GetMapping("/list")  // GET请求映射，处理 /api/message/list 请求
     public Result<PageResult<MessageVO>> getMessageList(  // 获取消息列表的方法，返回分页的消息VO列表
-            @RequestAttribute("userId") String userId,  // 从请求属性中获取用户ID（由网关注入），@RequestAttribute用于获取请求级别的属性
+            @RequestHeader(value = "X-User-Id", required = false) String userId,  // 从请求头中获取用户ID（由网关注入），@RequestHeader用于获取请求头中的属性
             @RequestParam(defaultValue = "1") Integer pageNum,  // 从URL查询参数中获取页码，默认值为1，如 ?pageNum=1
             @RequestParam(defaultValue = "10") Integer pageSize) {  // 从URL查询参数中获取每页条数，默认值为10，如 ?pageSize=10
         return Result.success(messageService.getMessageList(userId, pageNum, pageSize));  // 调用Service层查询消息列表，用Result.success包装后返回
@@ -51,7 +51,7 @@ public class MessageApiController {  // 消息API控制器类
      * @return 操作结果（无返回数据）
      */
     @PutMapping("/{id}/read")  // PUT请求映射，处理 /api/message/{id}/read 请求，{id}是路径变量
-    public Result<Void> markAsRead(@RequestAttribute("userId") String userId, @PathVariable Long id) {  // @PathVariable用于从URL路径中提取变量值
+    public Result<Void> markAsRead(@RequestHeader(value = "X-User-Id", required = false) String userId, @PathVariable Long id) {  // @PathVariable用于从URL路径中提取变量值
         messageService.markAsRead(userId, id);  // 调用Service层标记消息为已读
         return Result.success();  // 返回成功结果，无数据体
     }
@@ -64,7 +64,7 @@ public class MessageApiController {  // 消息API控制器类
      * @return 操作结果（无返回数据）
      */
     @PutMapping("/read-all")  // PUT请求映射，处理 /api/message/read-all 请求
-    public Result<Void> markAllAsRead(@RequestAttribute("userId") String userId) {  // 标记全部已读的方法
+    public Result<Void> markAllAsRead(@RequestHeader(value = "X-User-Id", required = false) String userId) {  // 标记全部已读的方法
         messageService.markAllAsRead(userId);  // 调用Service层批量标记所有消息为已读
         return Result.success();  // 返回成功结果，无数据体
     }
@@ -77,7 +77,7 @@ public class MessageApiController {  // 消息API控制器类
      * @return 未读消息的数量
      */
     @GetMapping("/unread-count")  // GET请求映射，处理 /api/message/unread-count 请求
-    public Result<Long> getUnreadCount(@RequestAttribute("userId") String userId) {  // 获取未读消息数量的方法
+    public Result<Long> getUnreadCount(@RequestHeader(value = "X-User-Id", required = false) String userId) {  // 获取未读消息数量的方法
         return Result.success(messageService.getUnreadCount(userId));  // 调用Service层查询未读数量，用Result.success包装后返回
     }
 }

@@ -21,4 +21,9 @@ public class CartItemVO {  // 购物车项视图对象类
     private BigDecimal price;  // 商品单价
     private String imageUrl;  // 商品图片URL
     private BigDecimal subtotal;  // 小计金额（单价 × 数量）
+
+    @com.fasterxml.jackson.annotation.JsonProperty("image")  // 序列化时生成 "image" 别名，前端可直接读取
+    public String getImage() {  // 获取图片URL的便捷方法，返回imageUrl的值
+        return this.imageUrl;  // 返回商品图片URL
+    }
 }

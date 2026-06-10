@@ -19,6 +19,6 @@ public class Announcement {  // 公告实体类
     private String title;  // 公告标题
     private String content;  // 公告内容
     private Integer status;  // 公告状态：0-草稿 1-已发布
-    @TableField("created_at")  // 字段映射注解，指定Java字段对应的数据库列名为"created_at"
+    @TableField(value = "created_at", fill = FieldFill.INSERT)  // 字段映射注解，指定数据库列名并设置插入时自动填充
     private LocalDateTime createdAt;  // 公告创建时间
 }

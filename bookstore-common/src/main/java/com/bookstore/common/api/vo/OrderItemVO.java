@@ -17,4 +17,5 @@ public class OrderItemVO {  // 订单项视图对象类
     private String productName;  // 商品名称
     private Integer quantity;  // 购买数量
     private BigDecimal price;  // 购买时的商品单价
+    private String image;  // 商品图片URL（方便前端展示）
 }

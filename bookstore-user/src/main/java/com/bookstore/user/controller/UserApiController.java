@@ -38,7 +38,7 @@ public class UserApiController {
      * @return 统一结果对象，成功时包含用户视图对象（UserVO）
      */
     @GetMapping("/{id}")  // GET请求映射，处理 /api/user/{id} 路径的查询请求，{id} 是路径变量
-    public Result<UserVO> getUserById(@PathVariable Long id) {  // @PathVariable 从URL路径中提取id参数值
+    public Result<UserVO> getUserById(@PathVariable String id) {  // @PathVariable 从URL路径中提取id参数值
         return Result.success(accountService.getUserById(id));  // 调用服务层查询用户信息，用Result包装返回
     }
 
@@ -51,7 +51,7 @@ public class UserApiController {
      * @return 统一结果对象，成功时无额外数据
      */
     @PutMapping("/{id}/password")  // PUT请求映射，处理 /api/user/{id}/password 路径的密码修改请求
-    public Result<Void> updatePassword(@PathVariable Long id, @Valid @RequestBody PasswordUpdateDTO dto) {  // @Valid校验参数，@RequestBody接收JSON请求体
+    public Result<Void> updatePassword(@PathVariable String id, @Valid @RequestBody PasswordUpdateDTO dto) {  // @Valid校验参数，@RequestBody接收JSON请求体
         accountService.updatePassword(id, dto);  // 调用服务层修改密码
         return Result.success();  // 修改成功，返回不带数据的成功结果
     }
@@ -65,7 +65,7 @@ public class UserApiController {
      * @return 统一结果对象，成功时无额外数据
      */
     @PutMapping("/{id}/profile")  // PUT请求映射，处理 /api/user/{id}/profile 路径的资料修改请求
-    public Result<Void> updateProfile(@PathVariable Long id, @RequestBody UserVO vo) {  // @RequestBody将JSON请求体转换为UserVO对象
+    public Result<Void> updateProfile(@PathVariable String id, @RequestBody UserVO vo) {  // @RequestBody将JSON请求体转换为UserVO对象
         accountService.updateProfile(id, vo);  // 调用服务层修改用户资料
         return Result.success();  // 修改成功，返回不带数据的成功结果
     }

@@ -54,7 +54,7 @@ public class AdminUserController {
      * @return 统一结果对象，成功时无额外数据
      */
     @PutMapping("/{id}/status")  // PUT请求映射，处理 /admin/user/{id}/status 路径的状态修改请求
-    public Result<Void> updateUserStatus(@PathVariable Long id, @RequestParam Integer status) {  // @PathVariable提取路径中的id，@RequestParam获取状态值
+    public Result<Void> updateUserStatus(@PathVariable String id, @RequestParam Integer status) {  // @PathVariable提取路径中的id，@RequestParam获取状态值
         accountService.updateUserStatus(id, status);  // 调用服务层修改用户状态
         return Result.success();  // 修改成功，返回不带数据的成功结果
     }
@@ -67,7 +67,7 @@ public class AdminUserController {
      * @return 统一结果对象，成功时无额外数据
      */
     @DeleteMapping("/{id}")  // DELETE请求映射，处理 /admin/user/{id} 路径的删除请求
-    public Result<Void> deleteUser(@PathVariable Long id) {  // @PathVariable 从URL路径中提取用户ID
+    public Result<Void> deleteUser(@PathVariable String id) {  // @PathVariable 从URL路径中提取用户ID
         accountService.deleteUser(id);  // 调用服务层删除用户
         return Result.success();  // 删除成功，返回不带数据的成功结果
     }
