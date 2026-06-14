@@ -40,6 +40,13 @@ RUN apk add --no-cache tzdata fontconfig ttf-dejavu curl \
     && echo "Asia/Shanghai" > /etc/timezone \
     && apk del tzdata
 
+# 下载并安装 SkyWalking Java Agent（分布式链路追踪探针，无侵入字节码增强）
+ARG SW_AGENT_VERSION=9.1.0
+ADD https://archive.apache.org/dist/skywalking/java-agent/${SW_AGENT_VERSION}/apache-skywalking-java-agent-${SW_AGENT_VERSION}.tgz /tmp/skywalking-agent.tgz
+RUN mkdir -p /skywalking \
+    && tar -xzf /tmp/skywalking-agent.tgz -C /skywalking --strip-components=0 \
+    && rm -f /tmp/skywalking-agent.tgz
+
 # 创建非 root 用户运行应用（安全最佳实践）
 RUN addgroup -S bookstore && adduser -S bookstore -G bookstore
 
@@ -49,6 +56,7 @@ COPY --from=builder /app/${MODULE}/target/*.jar app.jar
 
 # 设置文件归属
 RUN chown -R bookstore:bookstore /app
+RUN chown -R bookstore:bookstore /skywalking
 USER bookstore
 
 # 环境变量（可通过 docker-compose 或 -e 覆盖）

@@ -189,10 +189,8 @@ public class OrderService {
      * @return Result 包装的空返回体
      */
     public Result<Void> updateCartItem(String userId, Long itemId, Map<String, Object> update) {
-        // 从update Map中提取quantity字段，若为null则默认为1
-        Integer quantity = update.get("quantity") != null ? ((Number) update.get("quantity")).intValue() : 1;
-        // 委托Feign客户端更新购物车项数量
-        return orderFeignClient.updateCartItem(userId, itemId, quantity);
+        // 直接将update Map委托给Feign客户端，由其转发到订单服务处理
+        return orderFeignClient.updateCartItem(userId, itemId, update);
     }
 
     /**

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- 排除 Lombok 生成代码的警告 -->
+    <Match>
+        <Class name="~.*\$\$Lambda\$.*"/>
+    </Match>
+    <!-- 排除测试代码的某些检查 -->
+    <Match>
+        <Package name="~.*\.test\..*"/>
+        <Bug pattern="DM_DEFAULT_ENCODING"/>
+    </Match>
+    <!-- 排除 Entity 类的序列化警告 -->
+    <Match>
+        <Package name="com.bookstore.common.entity"/>
+        <Bug pattern="SE_NO_SERIALVERSIONID"/>
+    </Match>
+</FindBugsFilter>

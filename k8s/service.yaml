@@ -1,11 +1,11 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: bookverse-backend
-spec:
-  selector:
-    app: bookverse-backend
-  ports:
-    - port: 80
-      targetPort: 8080
-  type: ClusterIP
+# ============================================================
+# BookVerse K8s — 此文件已废弃
+# 所有 Service 定义已合并到 deployment.yaml 和 frontend-deployment.yaml 中
+# ============================================================
+# 请使用以下命令部署：
+#   kubectl apply -f k8s/namespace.yaml
+#   kubectl apply -f k8s/secret.yaml
+#   kubectl apply -f k8s/configmap.yaml
+#   kubectl apply -f k8s/deployment.yaml
+#   kubectl apply -f k8s/frontend-deployment.yaml
+#   kubectl apply -f k8s/ingress.yaml

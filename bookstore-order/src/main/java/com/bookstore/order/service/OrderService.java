@@ -28,9 +28,17 @@ import com.bookstore.order.mapper.OrderItemMapper;
 import com.bookstore.order.mapper.OrdersMapper;
 // 导入商品服务的Feign客户端（用于远程调用商品服务）
 import com.bookstore.order.feign.ProductFeignClient;
+// 导入订单消息生产者（用于发送异步消息到RabbitMQ）
+import com.bookstore.order.mq.OrderMessageProducer;
 // 导入Lombok注解，自动生成构造函数
 import com.bookstore.common.util.SnowflakeIdGenerator;
+// 导入Micrometer指标类，用于自定义监控指标
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.skywalking.apm.toolkit.trace.Tag;
+import org.apache.skywalking.apm.toolkit.trace.Tags;
 // 导入Spring的属性拷贝工具，用于对象之间的属性复制
 import org.springframework.beans.BeanUtils;
 // 导入Spring的Service注解，标记为业务层组件
@@ -41,9 +49,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;  // 导入高精度数字类型，用于处理金额计算
 import java.time.LocalDateTime;  // 导入日期时间类
 import java.time.format.DateTimeFormatter;  // 导入日期时间格式化器
+import java.util.ArrayList;  // 导入ArrayList，用于记录已扣减库存的商品
 import java.util.List;  // 导入List集合类
 import java.util.Random;  // 导入随机数生成器
 import java.util.stream.Collectors;  // 导入Stream流的收集器工具
+
+import com.bookstore.common.exception.BusinessException;  // 导入自定义业务异常类
 
 /**
  * 订单业务服务类
@@ -64,6 +75,13 @@ public class OrderService {
     private final OrderItemMapper orderItemMapper;
     private final ProductFeignClient productFeignClient;
     private final SnowflakeIdGenerator snowflakeIdGenerator;
+    private final OrderMessageProducer orderMessageProducer;  // 订单消息生产者，用于发送异步消息
+
+    // ==================== 自定义监控指标 ====================
+    private final Counter ordersCreatedCounter;     // 订单创建计数器
+    private final Counter ordersPaidCounter;        // 订单支付计数器
+    private final Counter ordersCancelledCounter;   // 订单取消计数器
+    private final DistributionSummary ordersAmountSummary;  // 订单金额分布统计
 
     /**
      * 构造函数，通过参数注入所有依赖
@@ -71,13 +89,22 @@ public class OrderService {
      * @param orderItemMapper 订单项数据访问层
      * @param productFeignClient 商品服务Feign客户端
      * @param snowflakeIdGenerator 雪花ID生成器
+     * @param orderMessageProducer 订单消息生产者
+     * @param meterRegistry Micrometer指标注册器，用于获取自定义Counter和Summary
      */
     public OrderService(OrdersMapper ordersMapper, OrderItemMapper orderItemMapper,
-                        ProductFeignClient productFeignClient, SnowflakeIdGenerator snowflakeIdGenerator) {
+                        ProductFeignClient productFeignClient, SnowflakeIdGenerator snowflakeIdGenerator,
+                        OrderMessageProducer orderMessageProducer, MeterRegistry meterRegistry) {
         this.ordersMapper = ordersMapper;
         this.orderItemMapper = orderItemMapper;
         this.productFeignClient = productFeignClient;
         this.snowflakeIdGenerator = snowflakeIdGenerator;
+        this.orderMessageProducer = orderMessageProducer;
+        // 从MeterRegistry中获取自定义指标Bean（在MetricsConfig中注册）
+        this.ordersCreatedCounter = meterRegistry.counter("bookstore.orders.created");
+        this.ordersPaidCounter = meterRegistry.counter("bookstore.orders.paid");
+        this.ordersCancelledCounter = meterRegistry.counter("bookstore.orders.cancelled");
+        this.ordersAmountSummary = meterRegistry.summary("bookstore.orders.amount");
     }
 
     /**
@@ -89,6 +116,10 @@ public class OrderService {
      * @throws IllegalArgumentException 当商品不存在或库存不足时抛出异常
      */
     @Transactional  // 开启事务：如果过程中任何一步失败，所有数据库操作都会回滚
+    @Tags({
+            @Tag(key = "order.userId", value = "arg[0]"),
+            @Tag(key = "order.itemsCount", value = "arg[1].items.size()")
+    })
     public OrderVO createOrder(String userId, OrderCreateDTO dto) {  // 创建订单的方法，接收用户ID和订单创建DTO
         // 创建订单实体对象，用于保存到数据库
         Orders order = new Orders();  // 实例化一个新的订单对象
@@ -134,37 +165,80 @@ public class OrderService {
 
         BigDecimal totalPrice = BigDecimal.ZERO;  // 初始化订单总价为0，用BigDecimal避免浮点数精度问题
 
-        // 处理订单中的商品项
-        if (dto.getItems() != null && !dto.getItems().isEmpty()) {  // 判断订单中是否有商品项
-            for (OrderItemDTO itemDTO : dto.getItems()) {  // 遍历每个订单项DTO
-                // 通过Feign远程调用商品服务，获取商品的详细信息
-                Result<ProductVO> result = productFeignClient.getProductById(itemDTO.getProductId());  // 远程调用商品服务获取商品信息
-                if (result == null || result.getData() == null) {  // 判断商品是否存在
-                    throw new IllegalArgumentException("商品不存在: " + itemDTO.getProductId());  // 商品不存在时抛出异常
+        // ==================== 分布式事务补偿：记录已扣减库存的商品 ====================
+        // 用于在本地事务回滚时，补偿已经通过Feign远程扣减的库存
+        // Feign调用不受本地@Transactional管理，因此需要手动补偿
+        List<String[]> deductedItems = new ArrayList<>();  // 记录已扣减的商品ID和数量，格式: [productId, quantity]
+
+        try {
+            // 处理订单中的商品项
+            if (dto.getItems() != null && !dto.getItems().isEmpty()) {  // 判断订单中是否有商品项
+                for (OrderItemDTO itemDTO : dto.getItems()) {  // 遍历每个订单项DTO
+                    // 通过Feign远程调用商品服务，获取商品的详细信息
+                    Result<ProductVO> result = productFeignClient.getProductById(itemDTO.getProductId());  // 远程调用商品服务获取商品信息
+                    if (result == null || result.getData() == null) {  // 判断商品是否存在
+                        throw new BusinessException(404, "商品不存在: " + itemDTO.getProductId());  // 商品不存在时抛出异常
+                    }
+                    ProductVO product = result.getData();  // 从响应中取出商品信息
+                    if (product.getStock() < itemDTO.getQuantity()) {  // 判断商品库存是否充足
+                        throw new BusinessException(409, "商品库存不足: " + product.getName());  // 库存不足时抛出异常
+                    }
+
+                    OrderItem item = new OrderItem();  // 创建订单项实体对象
+                    item.setOrderId(order.getOrderid());  // 设置订单项所属的订单ID
+                    item.setProductId(itemDTO.getProductId());  // 设置商品ID
+                    item.setProductName(product.getName());  // 设置商品名称（从商品服务获取的真实名称）
+                    item.setPrice(product.getPrice());  // 设置商品单价（从商品服务获取的真实价格）
+                    item.setQuantity(itemDTO.getQuantity());  // 设置购买数量
+                    totalPrice = totalPrice.add(product.getPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity())));  // 累加总价：单价 × 数量
+
+                    orderItemMapper.insert(item);  // 将订单项插入数据库
+
+                    // 通过Feign远程调用商品服务，扣减对应商品的库存
+                    productFeignClient.updateStock(itemDTO.getProductId(), itemDTO.getQuantity());  // 调用商品服务扣减库存
+                    // 记录已扣减的商品，用于后续可能的补偿操作
+                    deductedItems.add(new String[]{itemDTO.getProductId(), String.valueOf(itemDTO.getQuantity())});
                 }
-                ProductVO product = result.getData();  // 从响应中取出商品信息
-                if (product.getStock() < itemDTO.getQuantity()) {  // 判断商品库存是否充足
-                    throw new IllegalArgumentException("商品库存不足: " + product.getName());  // 库存不足时抛出异常
-                }
-
-                OrderItem item = new OrderItem();  // 创建订单项实体对象
-                item.setOrderId(order.getOrderid());  // 设置订单项所属的订单ID
-                item.setProductId(itemDTO.getProductId());  // 设置商品ID
-                item.setProductName(product.getName());  // 设置商品名称（从商品服务获取的真实名称）
-                item.setPrice(product.getPrice());  // 设置商品单价（从商品服务获取的真实价格）
-                item.setQuantity(itemDTO.getQuantity());  // 设置购买数量
-                totalPrice = totalPrice.add(product.getPrice().multiply(BigDecimal.valueOf(itemDTO.getQuantity())));  // 累加总价：单价 × 数量
-
-                orderItemMapper.insert(item);  // 将订单项插入数据库
-
-                // 通过Feign远程调用商品服务，扣减对应商品的库存
-                productFeignClient.updateStock(itemDTO.getProductId(), itemDTO.getQuantity());  // 调用商品服务扣减库存
             }
+
+            order.setOriginalprice(totalPrice);  // 设置订单原价（优惠前的总价）
+            order.setTotalprice(totalPrice.subtract(order.getDiscountamount()));  // 设置订单实付价 = 原价 - 优惠金额
+
+            // ==================== 关键：订单插入可能失败，但库存已经扣减 ====================
+            // 此处用try-catch包裹，如果插入失败，需要补偿已扣减的库存
+            ordersMapper.insert(order);  // 将订单插入数据库
+
+        } catch (Exception e) {
+            // ==================== 分布式事务补偿逻辑 ====================
+            // 如果本地事务中任何步骤失败（如订单插入失败），但库存已通过Feign扣减，
+            // 必须通过反向Feign调用来恢复库存，否则会导致库存数据不一致
+            if (!deductedItems.isEmpty()) {
+                log.error("创建订单失败，开始补偿已扣减的库存，订单ID: {}, 失败原因: {}",
+                        order.getOrderid(), e.getMessage());
+                for (String[] deducted : deductedItems) {  // 遍历所有已扣减的商品
+                    String productId = deducted[0];  // 商品ID
+                    int quantity = Integer.parseInt(deducted[1]);  // 扣减数量
+                    try {
+                        // 补偿操作：恢复已扣减的库存（传入负数表示增加库存）
+                        productFeignClient.updateStock(productId, -quantity);
+                        log.info("库存补偿成功: productId={}, 恢复数量={}", productId, quantity);
+                    } catch (Exception compensateError) {
+                        // 补偿操作也失败了，记录严重错误，需要人工介入
+                        log.error("【严重】库存补偿失败，需要人工介入! productId={}, 需恢复数量={}, 错误: {}",
+                                productId, quantity, compensateError.getMessage(), compensateError);
+                    }
+                }
+            }
+            // 重新抛出异常，让@Transactional回滚本地数据库操作（订单项插入等）
+            if (e instanceof BusinessException) {
+                throw e;  // 业务异常直接抛出
+            }
+            throw new BusinessException(500, "创建订单失败: " + e.getMessage());  // 其他异常包装为BusinessException
         }
 
-        order.setOriginalprice(totalPrice);  // 设置订单原价（优惠前的总价）
-        order.setTotalprice(totalPrice.subtract(order.getDiscountamount()));  // 设置订单实付价 = 原价 - 优惠金额
-        ordersMapper.insert(order);  // 将订单插入数据库
+        // 订单创建成功，增加监控计数器和金额统计
+        ordersCreatedCounter.increment();  // 订单创建计数 +1
+        ordersAmountSummary.record(order.getTotalprice().doubleValue());  // 记录订单金额到分布统计
 
         return convertToVO(order);  // 将订单实体转换为视图对象并返回
     }
@@ -185,7 +259,7 @@ public class OrderService {
         }
         Orders order = ordersMapper.selectOne(wrapper);  // 执行数据库查询，返回单条记录
         if (order == null) {  // 如果查询结果为空
-            throw new IllegalArgumentException("订单不存在");  // 抛出异常提示订单不存在
+            throw new BusinessException(404, "订单不存在");  // 抛出异常提示订单不存在
         }
         return convertToVO(order);  // 将订单实体转换为视图对象并返回
     }
@@ -222,6 +296,10 @@ public class OrderService {
      * @throws IllegalArgumentException 当订单不存在或状态不正确时抛出异常
      */
     @Transactional  // 开启事务
+    @Tags({
+            @Tag(key = "order.userId", value = "arg[0]"),
+            @Tag(key = "order.orderId", value = "arg[1]")
+    })
     public void payOrder(String userId, String orderId) {  // 订单支付方法
         // 查询当前用户的指定订单
         Orders order = ordersMapper.selectOne(  // 执行数据库查询
@@ -229,13 +307,19 @@ public class OrderService {
                         .eq(Orders::getOrderid, orderId)  // 条件：订单ID匹配
                         .eq(Orders::getUserid, userId));  // 条件：用户ID匹配（确保只能支付自己的订单）
         if (order == null) {  // 如果订单不存在
-            throw new IllegalArgumentException("订单不存在");  // 抛出异常
+            throw new BusinessException(404, "订单不存在");  // 抛出异常
         }
         if (!"待支付".equals(order.getStatus())) {  // 检查订单状态是否为"待支付"
-            throw new IllegalArgumentException("订单状态异常");  // 只有待支付的订单才能支付
+            throw new BusinessException(400, "订单状态异常");  // 只有待支付的订单才能支付
         }
         order.setStatus("已支付");  // 更新订单状态为"已支付"
         ordersMapper.updateById(order);  // 根据订单主键更新数据库记录
+
+        // 支付成功后增加监控计数
+        ordersPaidCounter.increment();  // 订单支付计数 +1
+
+        // 发送订单支付成功的异步消息到RabbitMQ，触发下游处理（通知、积分等）
+        orderMessageProducer.sendOrderPaidMessage(orderId, userId);
     }
 
     /**
@@ -246,6 +330,10 @@ public class OrderService {
      * @throws IllegalArgumentException 当订单不存在或状态不正确时抛出异常
      */
     @Transactional  // 开启事务：取消订单和恢复库存需要保持原子性
+    @Tags({
+            @Tag(key = "order.userId", value = "arg[0]"),
+            @Tag(key = "order.orderId", value = "arg[1]")
+    })
     public void cancelOrder(String userId, String orderId) {  // 取消订单方法
         // 查询当前用户的指定订单
         Orders order = ordersMapper.selectOne(  // 执行数据库查询
@@ -253,10 +341,10 @@ public class OrderService {
                         .eq(Orders::getOrderid, orderId)  // 条件：订单ID匹配
                         .eq(Orders::getUserid, userId));  // 条件：用户ID匹配
         if (order == null) {  // 如果订单不存在
-            throw new IllegalArgumentException("订单不存在");  // 抛出异常
+            throw new BusinessException(404, "订单不存在");  // 抛出异常
         }
         if (!"待支付".equals(order.getStatus())) {  // 检查订单状态是否为"待支付"
-            throw new IllegalArgumentException("只能取消待支付订单");  // 只有待支付的订单才能取消
+            throw new BusinessException(400, "只能取消待支付订单");  // 只有待支付的订单才能取消
         }
         order.setStatus("已取消");  // 更新订单状态为"已取消"
         ordersMapper.updateById(order);  // 根据订单主键更新数据库记录
@@ -265,8 +353,26 @@ public class OrderService {
         List<OrderItem> items = orderItemMapper.selectList(  // 查询该订单的所有订单项
                 new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, orderId));  // 条件：订单ID匹配
         for (OrderItem item : items) {  // 遍历每个订单项
-            productFeignClient.updateStock(item.getProductId(), -item.getQuantity());  // 调用商品服务恢复库存（传入负数表示增加库存）
+            try {
+                // 调用商品服务恢复库存（传入负数表示增加库存）
+                productFeignClient.updateStock(item.getProductId(), -item.getQuantity());
+                log.info("取消订单恢复库存成功: orderId={}, productId={}, 恢复数量={}",
+                        orderId, item.getProductId(), item.getQuantity());
+            } catch (Exception e) {
+                // 库存恢复失败时记录详细错误信息，方便人工介入
+                log.error("【警告】取消订单恢复库存失败，需要人工介入! orderId={}, productId={}, " +
+                                "需恢复数量={}, 错误信息: {}",
+                        orderId, item.getProductId(), item.getQuantity(), e.getMessage(), e);
+                // 注意：此处不抛出异常中断流程，因为订单状态已经更新为"已取消"
+                // 库存问题可以通过异步消息或定时任务来最终一致性修复
+            }
         }
+
+        // 增加监控计数
+        ordersCancelledCounter.increment();  // 订单取消计数 +1
+
+        // 发送订单取消的异步消息到RabbitMQ，由消费者异步处理库存恢复等后续操作
+        orderMessageProducer.sendOrderCancelledMessage(orderId, userId);
     }
 
     /**
@@ -277,6 +383,10 @@ public class OrderService {
      * @throws IllegalArgumentException 当订单不存在或状态不正确时抛出异常
      */
     @Transactional  // 开启事务
+    @Tags({
+            @Tag(key = "order.userId", value = "arg[0]"),
+            @Tag(key = "order.orderId", value = "arg[1]")
+    })
     public void confirmReceive(String userId, String orderId) {  // 确认收货方法
         // 查询当前用户的指定订单
         Orders order = ordersMapper.selectOne(  // 执行数据库查询
@@ -284,10 +394,10 @@ public class OrderService {
                         .eq(Orders::getOrderid, orderId)  // 条件：订单ID匹配
                         .eq(Orders::getUserid, userId));  // 条件：用户ID匹配
         if (order == null) {  // 如果订单不存在
-            throw new IllegalArgumentException("订单不存在");  // 抛出异常
+            throw new BusinessException(404, "订单不存在");  // 抛出异常
         }
         if (!"已发货".equals(order.getStatus())) {  // 检查订单状态是否为"已发货"
-            throw new IllegalArgumentException("订单状态异常");  // 只有已发货的订单才能确认收货
+            throw new BusinessException(400, "订单状态异常");  // 只有已发货的订单才能确认收货
         }
         order.setStatus("已完成");  // 更新订单状态为"已完成"
         ordersMapper.updateById(order);  // 根据订单主键更新数据库记录
@@ -326,10 +436,10 @@ public class OrderService {
     public void shipOrder(String orderId) {  // 管理员发货方法
         Orders order = ordersMapper.selectById(orderId);  // 根据主键ID查询订单
         if (order == null) {  // 如果订单不存在
-            throw new IllegalArgumentException("订单不存在");  // 抛出异常
+            throw new BusinessException(404, "订单不存在");  // 抛出异常
         }
         if (!"已支付".equals(order.getStatus())) {  // 检查订单状态是否为"已支付"
-            throw new IllegalArgumentException("订单状态异常");  // 只有已支付的订单才能发货
+            throw new BusinessException(400, "订单状态异常");  // 只有已支付的订单才能发货
         }
         order.setStatus("已发货");  // 更新订单状态为"已发货"
         ordersMapper.updateById(order);  // 根据订单主键更新数据库记录

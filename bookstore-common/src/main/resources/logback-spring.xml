@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 从 Spring 环境中读取应用名称 -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="bookstore"/>
+    <springProperty scope="context" name="LOG_LEVEL" source="logging.level.com.bookstore" defaultValue="INFO"/>
+
+    <!-- 日志输出路径 -->
+    <property name="LOG_PATH" value="/var/log/bookverse"/>
+    <property name="LOG_FILE" value="${LOG_PATH}/${APP_NAME}.log"/>
+
+    <!-- 控制台输出格式：包含 SkyWalking TraceId（%tid 由 apm-toolkit-logback 注入） -->
+    <property name="CONSOLE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%tid] %-5level [%X{traceId:-},%X{spanId:-}] %logger{36} - %msg%n"/>
+
+    <!-- 文件输出格式：JSON 友好，便于 ELK 采集解析 -->
+    <property name="FILE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%tid] %-5level [%X{traceId:-},%X{spanId:-}] %logger{50} - %msg%n"/>
+
+    <!-- ==================== 控制台 Appender ==================== -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ==================== 文件 Appender（按天滚动） ==================== -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_FILE}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}-%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ==================== SkyWalking gRPC 日志上报 Appender ==================== -->
+    <!-- 将日志通过 gRPC 上报到 SkyWalking OAP，实现日志与链路关联 -->
+    <appender name="GRPC_LOG" class="org.apache.skywalking.apm.toolkit.log.logback.v1.x.log.GRPCLogClientAppender">
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ==================== 业务日志级别配置 ==================== -->
+    <logger name="com.bookstore" level="${LOG_LEVEL}"/>
+    <logger name="org.springframework" level="WARN"/>
+    <logger name="org.springframework.cloud.gateway" level="INFO"/>
+    <logger name="com.baomidou.mybatisplus" level="WARN"/>
+    <logger name="org.apache.skywalking" level="WARN"/>
+
+    <!-- ==================== Root Logger ==================== -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="GRPC_LOG"/>
+    </root>
+
+    <!-- ==================== 开发环境覆盖（本地开发不写文件、不上报 gRPC） ==================== -->
+    <springProfile name="dev,default">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>

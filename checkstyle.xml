@@ -44,13 +44,25 @@
         </module>
         
         <!-- import检查 -->
-        <module name="UnusedImports"/>
-        <module name="RedundantImport"/>
+        <module name="UnusedImports"/>          <!-- 检查未使用的导入语句 -->
+        <module name="RedundantImport"/>        <!-- 检查冗余的导入语句（如重复导入、同包导入） -->
+        <module name="AvoidStarImport"/>        <!-- 禁止使用星号导入（如 import java.util.*） -->
+        <module name="ImportOrder">             <!-- 导入语句排序规范：java → javax → org → com → static -->
+            <property name="groups" value="java,javax,org,com"/>
+            <property name="ordered" value="true"/>
+            <property name="separated" value="true"/>
+            <property name="option" value="top"/>
+            <property name="separatedStatic" value="true"/>
+        </module>
         
         <!-- 代码块检查 -->
-        <module name="NeedBraces"/>
-        <module name="LeftCurly"/>
-        <module name="RightCurly"/>
+        <module name="NeedBraces"/>             <!-- 强制 if/else/for/while/do 语句使用大括号 -->
+        <module name="LeftCurly"/>              <!-- 左大括号位置检查（放在行尾） -->
+        <module name="RightCurly"/>             <!-- 右大括号位置检查（单独一行） -->
+        <module name="EmptyBlock">              <!-- 检查空代码块（不允许空的 catch/finally/switch 等） -->
+            <property name="option" value="TEXT"/>
+            <property name="tokens" value="LITERAL_TRY,LITERAL_FINALLY,LITERAL_IF,LITERAL_ELSE,LITERAL_SWITCH"/>
+        </module>
         
         <!-- 空格检查 -->
         <module name="WhitespaceAround">
@@ -74,6 +86,20 @@
         <!-- 参数数量 -->
         <module name="ParameterNumber">
             <property name="max" value="7"/>
+        </module>
+        
+        <!-- 圈复杂度检查：限制方法的最大圈复杂度为15，过高的复杂度意味着代码难以测试和维护 -->
+        <module name="CyclomaticComplexity">
+            <property name="max" value="15"/>
+        </module>
+        
+        <!-- 缩进检查：强制使用4个空格缩进，保持代码格式统一 -->
+        <module name="Indentation">
+            <property name="basicOffset" value="4"/>
+            <property name="braceAdjustment" value="0"/>
+            <property name="caseIndent" value="4"/>
+            <property name="throwsIndent" value="8"/>
+            <property name="lineWrappingIndentation" value="8"/>
         </module>
     </module>
 </module>

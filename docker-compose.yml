@@ -78,6 +78,46 @@ services:
       - bookstore-net
     restart: unless-stopped
 
+  # SkyWalking OAP Server（链路追踪后端）
+  skywalking-oap:
+    image: apache/skywalking-oap-server:9.7.0
+    container_name: bookstore-skywalking-oap
+    environment:
+      SW_STORAGE: h2
+      SW_STORAGE_H2_URL: jdbc:h2:mem:skywalking-oap-db
+      SW_HEALTH_CHECKER: default
+      SW_TELEMETRY: prometheus
+      SW_CORE_REST_PORT: 12800
+      SW_CORE_GRPC_PORT: 11800
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+    ports:
+      - "12800:12800"   # REST API（UI 查询接口）
+      - "11800:11800"   # gRPC（Agent 数据上报端口）
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -sf http://localhost:12800/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - bookstore-net
+    restart: unless-stopped
+
+  # SkyWalking UI（链路追踪可视化界面）
+  skywalking-ui:
+    image: apache/skywalking-ui:9.7.0
+    container_name: bookstore-skywalking-ui
+    environment:
+      SW_OAP_ADDRESS: http://skywalking-oap:12800
+    ports:
+      - "8888:8080"    # Web UI 访问端口
+    depends_on:
+      skywalking-oap:
+        condition: service_healthy
+    networks:
+      - bookstore-net
+    restart: unless-stopped
+
   # ============================================================
   # 微服务层（Java / Spring Boot）
   # ============================================================
@@ -101,13 +141,18 @@ services:
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-gateway
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      skywalking-oap:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/actuator/health"]
@@ -138,13 +183,18 @@ services:
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-user
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      skywalking-oap:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8081/actuator/health"]
@@ -175,13 +225,18 @@ services:
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-product
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      skywalking-oap:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8082/actuator/health"]
@@ -212,13 +267,18 @@ services:
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-order
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      skywalking-oap:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8083/actuator/health"]
@@ -249,13 +309,18 @@ services:
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-promotion
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      skywalking-oap:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8085/actuator/health"]
@@ -286,13 +351,18 @@ services:
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-admin
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      skywalking-oap:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8086/actuator/health"]
@@ -323,13 +393,18 @@ services:
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-message
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       nacos:
+        condition: service_healthy
+      skywalking-oap:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
@@ -379,6 +454,7 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  skywalking_agent:
 
 # ============================================================
 # 网络

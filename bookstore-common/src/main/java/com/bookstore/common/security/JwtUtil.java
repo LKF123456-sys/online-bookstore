@@ -19,7 +19,7 @@ import java.util.Map;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret:BookVerseSecretKey2024ForJWTTokenGenerationMustBe256BitsLongEnough}")
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.expiration:86400000}")

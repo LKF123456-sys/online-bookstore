@@ -11,15 +11,22 @@ BookVerse 是一个功能完整的在线图书销售平台，采用 Spring Cloud
 - **前后端分离**：Vue 3 + TypeScript 构建用户前台和管理后台，Naive UI 组件库
 - **微服务架构**：8 个独立服务模块，松耦合高内聚
 - **安全认证**：JJWT 签名验证 + RBAC 角色鉴权，网关统一拦截
+- **Token 黑名单**：基于 Redis 实现 JWT 登出即失效，Gateway 实时校验
+- **接口限流**：Spring Cloud Gateway + Redis 令牌桶，登录/注册接口防暴力破解
 - **服务发现**：Nacos 注册中心实现服务自动发现
 - **远程调用**：OpenFeign 声明式服务间通信 + Fallback 降级
 - **全文搜索**：Elasticsearch 支持商品搜索
 - **消息队列**：RabbitMQ 异步消息处理
 - **数据缓存**：Redis 缓存加速（SCAN 替代 KEYS）
-- **分布式 ID**：Snowflake 算法生成全局唯一订单号
+- **分布式 ID**：Snowflake 算法生成全局唯一 ID（订单号、购物车项 ID）
+- **统一异常处理**：BusinessException + HTTP 状态码语义正确化（401/403/404/409）
+- **单元测试**：JUnit 5 + Mockito，覆盖核心业务逻辑（登录、下单、库存扣减等）
+- **数据库约束**：13 条外键约束保障数据完整性，类型一致性修复
 - **全链路日志**：SLF4J 结构化日志覆盖所有核心业务操作
 - **监控体系**：Actuator + Prometheus 指标采集
 - **容器化部署**：Docker Compose 一键启动全部 12 个服务
+- **K8s 就绪**：7 个微服务独立 Deployment/Service，Secret 敏感配置分离
+- **CI/CD**：Jenkins + GitHub Actions 双流水线，per-service 镜像构建
 
 ---
 
@@ -88,7 +95,8 @@ online-bookstore/
 │       └── util/                    # PasswordUtil、SnowflakeIdGenerator
 │
 ├── bookstore-gateway/               # API 网关（端口 8080）
-│   └── filter/AuthFilter.java       # JJWT 签名验证 + RBAC 角色鉴权
+│   ├── filter/AuthFilter.java       # JJWT 签名验证 + RBAC 鉴权 + Token 黑名单检查
+│   └── config/RateLimiterConfig.java # 基于 Redis 的接口限流（IP 维度令牌桶）
 │
 ├── bookstore-user/                  # 用户服务（端口 8081）
 ├── bookstore-product/               # 商品服务（端口 8082）
@@ -126,8 +134,14 @@ online-bookstore/
 ├── start-dev.bat                    # Windows 本地开发启动脚本
 ├── elk/                             # ELK 日志系统配置
 ├── k8s/                             # Kubernetes 部署配置
-├── Jenkinsfile                      # Jenkins CI/CD 流水线
-└── .github/workflows/ci.yml         # GitHub Actions CI 配置
+│   ├── namespace.yaml               # 命名空间
+│   ├── secret.yaml                  # 敏感配置（DB密码、JWT密钥）
+│   ├── configmap.yaml               # 非敏感配置（Nacos地址、DB URL）
+│   ├── deployment.yaml              # 7个后端微服务 Deployment + Service
+│   ├── frontend-deployment.yaml     # 前端 Deployment + Service
+│   └── ingress.yaml                 # Ingress 路由规则
+├── Jenkinsfile                      # Jenkins CI/CD 流水线（per-service 镜像构建 + 自动 rollback）
+└── .github/workflows/ci.yml         # GitHub Actions CI（后端+前端并行构建 + per-service Docker）
 ```
 
 ---
@@ -193,12 +207,30 @@ online-bookstore/
 2. User 服务验证密码（BCrypt），使用 JJWT 生成签名 Token
 3. Token 包含 userId、username、role（user/admin）
 4. 后续请求携带 Authorization: Bearer <token>
-5. Gateway AuthFilter 拦截 → JJWT 验签（签名 + 过期时间）
+5. Gateway AuthFilter 拦截：
+   a. JJWT 验签（签名 + 过期时间）
+   b. 检查 Redis 黑名单（jwt:blacklist:{token}）→ 已登出则返回 401
 6. 提取 userId 和 role，注入 X-User-Id / X-User-Role 请求头
 7. /admin/** 路径额外校验 role == "admin"（RBAC）
 8. 转发到目标微服务
 9. 下游服务通过 UserIdFilter 获取当前用户身份
+
+登出流程：
+1. 用户登出 → POST /api/auth/logout（携带 Token）
+2. User 服务将 Token 写入 Redis 黑名单，TTL = Token 剩余有效期
+3. 后续该 Token 的任何请求都会被 Gateway 黑名单检查拦截
 ```
+
+### 接口限流
+
+Gateway 对认证类接口实施基于 Redis 令牌桶的 IP 级限流：
+
+| 接口 | 限流策略 | 说明 |
+|------|----------|------|
+| `/api/auth/login` | 10 req/s per IP | 防暴力破解密码 |
+| `/api/auth/register` | 5 req/s per IP | 防批量注册 |
+
+超限请求返回 `429 Too Many Requests`。
 
 ### 服务间调用关系
 
@@ -213,27 +245,27 @@ online-bookstore/
 
 ## 数据库设计
 
-数据库名：`bookstore`，初始化脚本：`sql/init.sql`（15 张表 + 种子数据）
+数据库名：`bookstore`，初始化脚本：`sql/init.sql`（15 张表 + 种子数据 + 外键约束）
 
 ### 数据表
 
-| 表名 | 说明 | 主要字段 |
-|------|------|----------|
-| `account` | 用户账户 | userid, email, password, role, status, 地址信息 |
-| `product` | 商品 | productid, category, name, author, price, stock, sales |
-| `category` | 商品分类 | categoryid, categoryname, categorydesc |
-| `product_sku` | 商品 SKU | product_id, sku_name, specs(JSON), price, stock |
-| `product_spec` | 商品规格 | product_id, spec_name, spec_values(JSON) |
-| `cart` | 购物车 | cartid, userid |
-| `cartitem` | 购物车项 | cartid, productid, quantity |
-| `orders` | 订单 | orderid, userid, totalprice, status, 收货地址 |
-| `order_item` | 订单项 | order_id, product_id, quantity, price |
-| `coupon` | 优惠券 | name, type, threshold, discount, total_count |
-| `user_coupon` | 用户优惠券 | user_id, coupon_id, is_used |
-| `book_review` | 图书评价 | product_id, user_id, rating, content, reply |
-| `message` | 站内消息 | sender_id, receiver_id, content, read_status |
-| `announcement` | 系统公告 | title, content, status |
-| `admin_log` | 操作日志 | admin_name, operation, target, detail, ip |
+| 表名 | 说明 | 主要字段 | 外键约束 |
+|------|------|----------|----------|
+| `account` | 用户账户 | userid, email, password, role, status, 地址信息 | — |
+| `product` | 商品 | productid, category, name, author, price, stock, sales | category → category |
+| `category` | 商品分类 | categoryid, categoryname, categorydesc | — |
+| `product_sku` | 商品 SKU | product_id, sku_name, specs(JSON), price, stock | product_id → product |
+| `product_spec` | 商品规格 | product_id, spec_name, spec_values(JSON) | product_id → product |
+| `cart` | 购物车 | cartid, userid | userid → account |
+| `cartitem` | 购物车项 | cartid, productid, quantity | cartid → cart, productid → product |
+| `orders` | 订单 | orderid, userid, totalprice, status, 收货地址 | userid → account |
+| `order_item` | 订单项 | order_id, product_id, quantity, price | order_id → orders, product_id → product |
+| `coupon` | 优惠券 | name, type, threshold, discount, total_count | — |
+| `user_coupon` | 用户优惠券 | user_id, coupon_id(BIGINT), is_used | user_id → account, coupon_id → coupon |
+| `book_review` | 图书评价 | product_id, user_id, rating, content, reply | product_id → product, user_id → account |
+| `message` | 站内消息 | sender_id, receiver_id, content, read_status | — |
+| `announcement` | 系统公告 | title, content, status | — |
+| `admin_log` | 操作日志 | admin_name, operation, target, detail, ip | — |
 
 ### 种子数据
 
@@ -267,6 +299,7 @@ online-bookstore/
 |------|------|------|------|
 | POST | `/api/auth/login` | 用户登录 | 无需 |
 | POST | `/api/auth/register` | 用户注册 | 无需 |
+| POST | `/api/auth/logout` | 用户登出（Token 加入黑名单） | 需要 |
 | GET | `/api/user/{id}` | 查询用户信息 | 需要 |
 | PUT | `/api/user/{id}/password` | 修改密码 | 需要 |
 | PUT | `/api/user/{id}/profile` | 修改个人资料 | 需要 |
@@ -393,6 +426,27 @@ online-bookstore/
 - Elasticsearch 8.x（商品全文搜索）
 - RabbitMQ 3.x（消息队列）
 
+### 必需环境变量
+
+启动前必须设置以下环境变量（无默认值，未设置将导致启动失败）：
+
+```bash
+# JWT 签名密钥（至少 256 位，所有服务必须使用相同密钥）
+export JWT_SECRET=your-secret-key-at-least-256-bits-long-here-for-hs256
+```
+
+可选环境变量（有默认值）：
+
+```bash
+export DB_URL=jdbc:mysql://localhost:3306/bookstore?...
+export DB_USERNAME=root
+export DB_PASSWORD=root
+export REDIS_HOST=localhost
+export REDIS_PORT=6379
+export NACOS_SERVER_ADDR=localhost:8848
+export JWT_EXPIRATION=86400000    # Token 有效期，默认 24 小时
+```
+
 ### 方式一：本地开发
 
 #### 1. 初始化数据库
@@ -510,19 +564,28 @@ Docker Compose 包含的服务：
 ## Kubernetes 部署
 
 ```bash
-kubectl apply -f k8s/
-kubectl get pods -l app=bookverse
-kubectl get svc
-kubectl get ingress
+# 按顺序部署
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/secret.yaml
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/frontend-deployment.yaml
+kubectl apply -f k8s/ingress.yaml
+
+# 查看状态
+kubectl get pods -n bookverse
+kubectl get svc -n bookverse
+kubectl get ingress -n bookverse
 ```
 
 | 文件 | 说明 |
 |------|------|
-| `deployment.yaml` | 后端部署（2 副本，资源限制 512Mi-1024Mi） |
-| `frontend-deployment.yaml` | 前端部署 |
-| `service.yaml` | ClusterIP 服务 |
-| `ingress.yaml` | Ingress 路由 |
-| `configmap.yaml` | 配置映射 |
+| `namespace.yaml` | 命名空间 `bookverse` |
+| `secret.yaml` | 敏感配置（DB 密码、JWT 密钥），部署前替换 base64 值 |
+| `configmap.yaml` | 非敏感配置（Nacos 地址、DB URL） |
+| `deployment.yaml` | 7 个后端微服务各自独立 Deployment + Service（2 副本，健康检查） |
+| `frontend-deployment.yaml` | 用户前台 + 管理后台前端 Deployment + Service |
+| `ingress.yaml` | Ingress 路由（API → Gateway，默认 → 前端） |
 
 ---
 
@@ -547,11 +610,23 @@ cd elk && docker-compose -f docker-compose-elk.yml up -d
 
 触发条件：Push 到 `main`/`develop` 或 PR 到 `main`。
 
-流水线：JDK 21 → Maven 编译 → 测试 → 打包 → Docker 镜像（仅 main）。
+流水线分 3 个 Job 并行/串行执行：
+
+1. **backend-build**：JDK 21 → Maven 编译 → 测试 → 打包 → 上传 JAR
+2. **frontend-build**：Node.js 18 → npm ci → lint → build（user + admin 两个项目 matrix 并行）
+3. **docker**（仅 main 分支）：为 9 个服务（7 后端 + 2 前端）分别构建 Docker 镜像
 
 ### Jenkins
 
-Jenkinsfile 定义完整流程：代码检出 → 后端构建 → 前端构建 → Docker 构建推送 → K8s 滚动更新 → 健康检查。
+Jenkinsfile 定义完整流程：
+
+1. 代码检出
+2. 后端构建与测试（JUnit 报告收集）
+3. 前端构建与检查（user + admin）
+4. 9 个服务分别构建 Docker 镜像并推送到 Registry
+5. K8s 滚动更新（`kubectl set image` + `rollout status`）
+6. 健康检查（重试机制，最多 5 次，间隔 10 秒）
+7. 失败时自动 rollback 所有 Deployment
 
 ---
 
@@ -581,6 +656,22 @@ A: 各 Java 服务依赖 MySQL、Redis、Nacos 的健康检查。可通过 `dock
 
 A: Vite 开发服务器已配置代理，`/api` 请求会转发到网关 `http://localhost:8080`。确认网关已启动。
 
+### Q: 启动时报 `jwt.secret` 属性缺失？
+
+A: 项目已移除 JWT 密钥的硬编码默认值。启动前必须设置 `JWT_SECRET` 环境变量：
+
+```bash
+export JWT_SECRET=your-secret-key-at-least-256-bits-long-here-for-hs256
+```
+
+### Q: 登出后 Token 仍然有效？
+
+A: 确认 Gateway 和 User 服务都连接了同一个 Redis 实例。登出时 Token 会被写入 Redis 黑名单（`jwt:blacklist:{token}`），Gateway 在每次请求时检查该 key。如果 Redis 不可用，Gateway 会降级为不检查黑名单。
+
+### Q: 登录接口返回 429？
+
+A: 网关对 `/api/auth/login` 和 `/api/auth/register` 实施了基于 IP 的令牌桶限流。登录限制每秒 10 次，注册限制每秒 5 次。如需调整限流参数，修改 `bookstore-gateway/application.yml` 中的 `redis-rate-limiter` 配置。
+
 ---
 
 ## 模块依赖关系
@@ -594,8 +685,53 @@ bookstore-common（基础层）
     ├── bookstore-promotion
     ├── bookstore-message
     ├── bookstore-admin（依赖所有服务的 Feign 接口）
-    └── bookstore-gateway（独立，不依赖 common）
+    └── bookstore-gateway（独立，依赖 common 中的 JwtUtil）
 ```
+
+---
+
+## 单元测试
+
+项目使用 JUnit 5 + Mockito 编写单元测试，覆盖核心业务逻辑。
+
+### 测试文件
+
+| 模块 | 测试类 | 用例数 | 覆盖范围 |
+|------|--------|--------|----------|
+| bookstore-user | `AccountServiceTest` | 16 | 登录、注册、登出(Token黑名单)、查询、改密、修改资料、管理员功能 |
+| bookstore-order | `OrderServiceTest` | 14 | 创建订单、支付、取消(库存恢复)、确认收货、发货、订单查询 |
+| bookstore-order | `CartServiceTest` | 13 | 获取购物车、添加商品(新增/累加)、更新数量、删除、清空 |
+| bookstore-product | `ProductServiceTest` | 15 | 列表查询(分页/筛选)、详情(缓存命中/未命中)、推荐热门、库存扣减、增删改 |
+| bookstore-gateway | `AuthFilterTest` | 13 | 白名单放行、Token验证(有效/过期/无效)、黑名单拦截、RBAC鉴权 |
+| bookstore-common | `ResultTest` | 5 | 统一返回结果封装 |
+| bookstore-common | `BusinessExceptionTest` | 3 | 业务异常类 |
+| bookstore-admin | `AuthRestControllerTest` | 9 | 管理后台认证接口 |
+| bookstore-admin | `UserServiceTest` | 5 | 管理后台用户服务(Feign代理) |
+
+### 运行测试
+
+```bash
+# 运行所有测试
+export JWT_SECRET=BookVerseSecretKey2024ForJWTTokenGenerationMustBe256BitsLongEnough
+mvn test
+
+# 运行单个模块的测试
+mvn test -pl bookstore-user
+mvn test -pl bookstore-order
+mvn test -pl bookstore-product
+mvn test -pl bookstore-gateway
+
+# 查看测试报告
+# 各模块 target/surefire-reports/ 目录下
+```
+
+### 测试技术栈
+
+- **JUnit 5**：测试框架，`@Test`、`@Nested`、`@DisplayName` 组织测试
+- **Mockito**：Mock 框架，`@Mock`、`@InjectMocks`、`verify()` 验证交互
+- **AssertJ / JUnit Assertions**：断言库
+- **Spring MockMvc**：Controller 层 HTTP 请求模拟（admin 模块测试）
+- **Reactor Test**：Gateway 响应式过滤器测试
 
 ---
 

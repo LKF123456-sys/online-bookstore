@@ -67,7 +67,8 @@ CREATE TABLE `product` (
     KEY `idx_category` (`category`),
     KEY `idx_status` (`status`),
     KEY `idx_sales` (`sales`),
-    KEY `idx_price` (`price`)
+    KEY `idx_price` (`price`),
+    CONSTRAINT `fk_product_category` FOREIGN KEY (`category`) REFERENCES `category` (`categoryid`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品表';
 
 -- ============================================================
@@ -83,7 +84,8 @@ CREATE TABLE `product_sku` (
     `stock`      INT            DEFAULT 0 COMMENT '库存',
     `status`     TINYINT       DEFAULT 1 COMMENT '状态: 0=禁用 1=启用',
     PRIMARY KEY (`id`),
-    KEY `idx_product_id` (`product_id`)
+    KEY `idx_product_id` (`product_id`),
+    CONSTRAINT `fk_sku_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`productid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品SKU表';
 
 -- ============================================================
@@ -97,7 +99,8 @@ CREATE TABLE `product_spec` (
     `spec_values` JSON         COMMENT '规格值数组(JSON)',
     `sort`        INT          DEFAULT 0 COMMENT '排序',
     PRIMARY KEY (`id`),
-    KEY `idx_product_id` (`product_id`)
+    KEY `idx_product_id` (`product_id`),
+    CONSTRAINT `fk_spec_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`productid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='商品规格表';
 
 -- ============================================================
@@ -109,7 +112,8 @@ CREATE TABLE `cart` (
     `userid`     VARCHAR(50) NOT NULL COMMENT '用户ID(FK->account)',
     `created_at` DATETIME    DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`cartid`),
-    KEY `idx_userid` (`userid`)
+    KEY `idx_userid` (`userid`),
+    CONSTRAINT `fk_cart_account` FOREIGN KEY (`userid`) REFERENCES `account` (`userid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='购物车表';
 
 -- ============================================================
@@ -123,7 +127,9 @@ CREATE TABLE `cartitem` (
     `quantity`  INT         DEFAULT 1 COMMENT '数量',
     PRIMARY KEY (`itemid`),
     KEY `idx_cartid` (`cartid`),
-    KEY `idx_productid` (`productid`)
+    KEY `idx_productid` (`productid`),
+    CONSTRAINT `fk_cartitem_cart` FOREIGN KEY (`cartid`) REFERENCES `cart` (`cartid`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_cartitem_product` FOREIGN KEY (`productid`) REFERENCES `product` (`productid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='购物车项表';
 
 -- ============================================================
@@ -163,7 +169,8 @@ CREATE TABLE `orders` (
     PRIMARY KEY (`orderid`),
     KEY `idx_userid` (`userid`),
     KEY `idx_status` (`status`),
-    KEY `idx_orderdate` (`orderdate`)
+    KEY `idx_orderdate` (`orderdate`),
+    CONSTRAINT `fk_orders_account` FOREIGN KEY (`userid`) REFERENCES `account` (`userid`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单表';
 
 -- ============================================================
@@ -179,7 +186,9 @@ CREATE TABLE `order_item` (
     `price`        DECIMAL(10,2)  NOT NULL COMMENT '购买时单价',
     PRIMARY KEY (`id`),
     KEY `idx_order_id` (`order_id`),
-    KEY `idx_product_id` (`product_id`)
+    KEY `idx_product_id` (`product_id`),
+    CONSTRAINT `fk_orderitem_orders` FOREIGN KEY (`order_id`) REFERENCES `orders` (`orderid`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_orderitem_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`productid`) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单项表';
 
 -- ============================================================
@@ -210,14 +219,16 @@ DROP TABLE IF EXISTS `user_coupon`;
 CREATE TABLE `user_coupon` (
     `id`        BIGINT    AUTO_INCREMENT COMMENT '主键',
     `user_id`   VARCHAR(50) NOT NULL COMMENT '用户ID(FK->account)',
-    `coupon_id` INT       NOT NULL COMMENT '优惠券ID(FK->coupon)',
+    `coupon_id` BIGINT      NOT NULL COMMENT '优惠券ID(FK->coupon)',
     `is_used`   TINYINT   DEFAULT 0 COMMENT '是否使用: 0=未用 1=已用',
     `grant_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '领取时间',
     `use_time`   DATETIME DEFAULT NULL COMMENT '使用时间',
     PRIMARY KEY (`id`),
     KEY `idx_user_id` (`user_id`),
     KEY `idx_coupon_id` (`coupon_id`),
-    UNIQUE KEY `uk_user_coupon` (`user_id`, `coupon_id`)
+    UNIQUE KEY `uk_user_coupon` (`user_id`, `coupon_id`),
+    CONSTRAINT `fk_usercoupon_account` FOREIGN KEY (`user_id`) REFERENCES `account` (`userid`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_usercoupon_coupon` FOREIGN KEY (`coupon_id`) REFERENCES `coupon` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户优惠券关联表';
 
 -- ============================================================
@@ -240,7 +251,9 @@ CREATE TABLE `book_review` (
     PRIMARY KEY (`id`),
     KEY `idx_product_id` (`product_id`),
     KEY `idx_user_id` (`user_id`),
-    KEY `idx_order_id` (`order_id`)
+    KEY `idx_order_id` (`order_id`),
+    CONSTRAINT `fk_review_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`productid`) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT `fk_review_account` FOREIGN KEY (`user_id`) REFERENCES `account` (`userid`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='图书评价表';
 
 -- ============================================================

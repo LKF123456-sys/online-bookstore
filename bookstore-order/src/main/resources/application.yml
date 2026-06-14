@@ -72,6 +72,11 @@ spring:
         import-check:
           enabled: false  # 关闭导入检查（避免Nacos中没有配置文件时报错）
 
+    # ==================== Feign客户端配置 ====================
+    openfeign:
+      circuitbreaker:
+        enabled: true  # 启用 Feign 的熔断器支持（配合 Resilience4j 使用）
+
 # ==================== MyBatis-Plus配置 ====================
 mybatis-plus:
   configuration:
@@ -94,6 +99,7 @@ management:
 
 # ==================== 日志配置 ====================
 logging:
+  config: classpath:logback-spring.xml
   level:
     com.bookstore: ${LOG_LEVEL:INFO}  # 项目代码的日志级别，默认INFO（可通过环境变量调整）
     org.springframework: WARN
@@ -103,3 +109,30 @@ logging:
 springdoc:
   api-docs:
     enabled: true  # 启用 /v3/api-docs 端点，生成 OpenAPI JSON 规范
+
+# ==================== Resilience4j 熔断器配置 ====================
+# 为 Feign 远程调用提供熔断保护，防止下游服务故障导致级联失败（雪崩效应）
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:  # 默认熔断器配置，所有未单独配置的实例都会继承此配置
+        sliding-window-size: 10  # 滑动窗口大小：统计最近10次请求的成功/失败情况
+        minimum-number-of-calls: 5  # 最少调用次数：至少5次请求后才计算失败率
+        failure-rate-threshold: 50  # 失败率阈值：当失败率 >= 50% 时触发熔断（打开断路器）
+        wait-duration-in-open-state: 10s  # 熔断持续时间：断路器打开后等待10秒再尝试请求
+        permitted-number-of-calls-in-half-open-state: 3  # 半开状态允许通过的请求数：3次
+        automatic-transition-from-open-to-half-open-enabled: true  # 自动从打开状态转为半开状态
+        slow-call-duration-threshold: 8s  # 慢调用阈值：响应时间超过8秒的请求视为慢调用
+        slow-call-rate-threshold: 80  # 慢调用率阈值：慢调用占比 >= 80% 时触发熔断
+    instances:
+      product-service:  # 商品服务专用熔断器实例
+        base-config: default  # 继承默认配置
+        tags:
+          service: bookstore-product  # 标签：用于监控和日志区分
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s  # 超时限制：Feign调用超过10秒自动取消（与Feign readTimeout配合）
+    instances:
+      product-service:
+        base-config: default

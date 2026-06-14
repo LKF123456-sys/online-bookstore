@@ -1,0 +1,9 @@
+# ============================================================
+# BookVerse K8s 配置 — Namespace
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bookverse
+  labels:
+    app: bookverse

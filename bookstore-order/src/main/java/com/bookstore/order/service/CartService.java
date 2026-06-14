@@ -14,6 +14,8 @@ import com.bookstore.common.api.vo.CartVO;
 import com.bookstore.common.api.vo.ProductVO;
 // 导入购物车实体类（对应数据库中的购物车表）
 import com.bookstore.common.entity.Cart;
+// 导入业务异常类
+import com.bookstore.common.exception.BusinessException;
 // 导入购物车项实体类（对应数据库中的购物车项表）
 import com.bookstore.common.entity.CartItem;
 // 导入购物车项的Mapper接口
@@ -22,6 +24,8 @@ import com.bookstore.order.mapper.CartItemMapper;
 import com.bookstore.order.mapper.CartMapper;
 // 导入商品服务的Feign客户端（用于远程调用商品服务）
 import com.bookstore.order.feign.ProductFeignClient;
+// 导入雪花ID生成器，用于生成全局唯一的购物车项ID
+import com.bookstore.common.util.SnowflakeIdGenerator;
 // 导入Lombok注解，自动生成构造函数
 import lombok.RequiredArgsConstructor;
 // 导入Spring的属性拷贝工具
@@ -33,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;  // 导入高精度数字类型，用于金额计算
 import java.util.List;  // 导入List集合类
-import java.util.UUID;  // 导入UUID工具类，用于生成唯一标识
 import java.util.stream.Collectors;  // 导入Stream流的收集器
 
 /**
@@ -52,6 +55,7 @@ public class CartService {  // 购物车服务类
     private final CartItemMapper cartItemMapper;  // 购物车项Mapper，用于操作购物车项表
     private final CartMapper cartMapper;  // 购物车Mapper，用于操作购物车表
     private final ProductFeignClient productFeignClient;  // 商品服务Feign客户端，用于远程获取商品信息
+    private final SnowflakeIdGenerator snowflakeIdGenerator;  // 雪花ID生成器，用于生成全局唯一的购物车项ID
 
     /**
      * 获取购物车信息
@@ -116,7 +120,7 @@ public class CartService {  // 购物车服务类
         // 通过Feign远程调用商品服务，验证商品是否存在
         Result<ProductVO> result = productFeignClient.getProductById(dto.getProductId());  // 获取商品信息
         if (result == null || result.getData() == null) {  // 如果商品不存在
-            throw new IllegalArgumentException("商品不存在");  // 抛出异常
+            throw new BusinessException(404, "商品不存在");  // 抛出异常
         }
 
         // 检查该商品是否已经在购物车中
@@ -130,7 +134,7 @@ public class CartService {  // 购物车服务类
             cartItemMapper.updateById(existingItem);  // 更新数据库记录
         } else {  // 如果商品不在购物车中
             CartItem item = new CartItem();  // 创建新的购物车项实体
-            item.setItemid(UUID.randomUUID().toString().substring(0, 8));  // 生成8位随机字符串作为购物车项ID
+            item.setItemid(snowflakeIdGenerator.nextOrderId("CI"));  // 使用雪花算法生成全局唯一的购物车项ID（替代UUID截取，避免碰撞）
             item.setCartid(cartId);  // 设置所属购物车ID
             item.setProductId(dto.getProductId());  // 设置商品ID
             item.setQuantity(dto.getQuantity());  // 设置购买数量
@@ -152,7 +156,7 @@ public class CartService {  // 购物车服务类
                         .eq(CartItem::getItemid, itemId)  // 条件：购物车项ID匹配
                         .eq(CartItem::getCartid, cartId));  // 条件：购物车ID匹配（安全校验）
         if (item == null) {  // 如果购物车项不存在
-            throw new IllegalArgumentException("购物车项不存在");  // 抛出异常
+            throw new BusinessException(404, "购物车项不存在");  // 抛出异常
         }
         if (quantity <= 0) {  // 如果数量小于等于0
             cartItemMapper.deleteById(itemId);  // 删除该购物车项（相当于移除商品）
@@ -174,7 +178,7 @@ public class CartService {  // 购物车服务类
                         .eq(CartItem::getItemid, itemId)  // 条件：购物车项ID匹配
                         .eq(CartItem::getCartid, cartId));  // 条件：购物车ID匹配
         if (item == null) {  // 如果购物车项不存在
-            throw new IllegalArgumentException("购物车项不存在");  // 抛出异常
+            throw new BusinessException(404, "购物车项不存在");  // 抛出异常
         }
         cartItemMapper.deleteById(itemId);  // 根据ID删除购物车项
     }
@@ -205,7 +209,7 @@ public class CartService {  // 购物车服务类
                         .eq(CartItem::getProductId, productId)  // 条件：商品ID匹配
                         .eq(CartItem::getCartid, cartId));  // 条件：购物车ID匹配
         if (item == null) {  // 如果购物车中没有该商品
-            throw new IllegalArgumentException("购物车项不存在");  // 抛出异常
+            throw new BusinessException(404, "购物车项不存在");  // 抛出异常
         }
         if (quantity <= 0) {  // 如果数量小于等于0
             cartItemMapper.deleteById(item.getItemid());  // 删除该购物车项

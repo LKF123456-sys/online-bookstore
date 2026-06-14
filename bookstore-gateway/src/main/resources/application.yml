@@ -9,6 +9,15 @@ server:
 
 # --- Spring框架配置 ---
 spring:
+  # --- Redis 配置（用于 token 黑名单和接口限流） ---
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 3000ms
+
   config:
     import: "optional:nacos:bookstore-gateway.yml"  # 从Nacos配置中心导入额外配置，optional表示如果Nacos不可用也不会报错
   application:
@@ -39,6 +48,35 @@ spring:
       # 路由规则说明：当请求的URL路径匹配predicates中的模式时，网关会将请求转发到uri指定的服务
       # lb:// 表示使用负载均衡（Load Balancer）方式访问服务，会从Nacos获取服务实例列表
       routes:
+        # 认证接口限流路由（必须在通用用户路由之前，Gateway 按顺序匹配）
+        # 登录接口 — 每 IP 每分钟最多 10 次请求
+        - id: bookstore-user-login-rate-limit
+          uri: lb://bookstore-user
+          predicates:
+            - Path=/api/auth/login
+          filters:
+            - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10    # 每秒允许通过 10 个请求（≈ 每分钟 600，配合 burstCapacity 实现每分钟 10 次的窗口控制）
+                redis-rate-limiter.burstCapacity: 10     # 突发容量：令牌桶最大容量，限制每秒最多 10 个请求
+                redis-rate-limiter.requestedTokens: 1    # 每个请求消耗 1 个令牌
+                key-resolver: "#{@ipKeyResolver}"        # 使用基于客户端 IP 的限流 key 解析器
+
+        # 注册接口 — 每 IP 每分钟最多 5 次请求（注册更敏感，限流更严格）
+        - id: bookstore-user-register-rate-limit
+          uri: lb://bookstore-user
+          predicates:
+            - Path=/api/auth/register
+          filters:
+            - StripPrefix=0
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5      # 每秒补充 5 个令牌
+                redis-rate-limiter.burstCapacity: 5       # 令牌桶容量 5
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@ipKeyResolver}"
+
         # 用户服务路由 - 处理用户认证（登录/注册）和个人信息相关请求
         - id: bookstore-user  # 路由的唯一标识
           uri: lb://bookstore-user  # 目标服务地址，lb://表示通过负载均衡访问bookstore-user服务
@@ -97,8 +135,8 @@ spring:
 
 # --- JWT配置 ---
 jwt:
-  secret: ${JWT_SECRET:BookVerseSecretKey2024ForJWTTokenGenerationMustBe256BitsLongEnough}
-  expiration: 86400000
+  secret: ${JWT_SECRET}   # 必须通过环境变量设置，无默认值——启动时未配置将直接失败
+  expiration: ${JWT_EXPIRATION:86400000}
 
 # --- Actuator监控端点配置 ---
 management:
@@ -112,5 +150,6 @@ management:
 
 # --- 日志配置 ---
 logging:
+  config: classpath:logback-spring.xml
   level:
     org.springframework.cloud.gateway: DEBUG  # 将Spring Cloud Gateway的日志级别设为DEBUG，方便调试路由转发逻辑

@@ -8,6 +8,7 @@ import com.bookstore.common.api.dto.RegisterDTO;  // 导入注册数据传输对
 import com.bookstore.common.api.vo.PageResult;  // 导入分页结果封装类，用于返回分页数据
 import com.bookstore.common.api.vo.UserVO;  // 导入用户视图对象（VO），用于返回给前端的用户数据
 import com.bookstore.common.entity.Account;  // 导入用户账户实体类，对应数据库中的用户表
+import com.bookstore.common.exception.BusinessException;  // 导入业务异常类，用于抛出带HTTP状态码的业务错误
 import com.bookstore.common.security.JwtUtil;  // 导入JWT工具类，用于生成和解析JWT Token
 import com.bookstore.common.util.PasswordUtil;  // 导入密码工具类，用于密码加密和校验
 import com.bookstore.user.mapper.AccountMapper;  // 导入用户账户Mapper接口，用于数据库操作
@@ -41,6 +42,9 @@ public class AccountService {
     private final JwtUtil jwtUtil;  // JWT工具类，用于生成和解析Token，实现无状态的用户认证
     private final RedisTemplate<String, Object> redisTemplate;  // Redis操作模板，用于缓存数据（如Token黑名单等）
 
+    /** Redis 黑名单 key 前缀，与 Gateway AuthFilter 中的定义保持一致 */
+    private static final String BLACKLIST_PREFIX = "jwt:blacklist:";
+
     /**
      * 用户登录方法
      * 验证用户名和密码，如果验证通过则生成JWT Token返回。
@@ -56,11 +60,11 @@ public class AccountService {
                 new LambdaQueryWrapper<Account>().eq(Account::getUserid, dto.getUsername()));  // 构建查询条件：userid = 传入的用户名
         // 校验用户是否存在，以及密码是否匹配（PasswordUtil.matches会将明文密码与加密后的密码进行比对）
         if (account == null || !PasswordUtil.matches(dto.getPassword(), account.getPassword())) {  // 用户不存在或密码不匹配
-            throw new IllegalArgumentException("用户名或密码错误");  // 抛出异常，提示用户名或密码错误
+            throw new BusinessException(401, "用户名或密码错误");  // 抛出401未授权异常
         }
         // 检查账号是否被禁用（status=0 表示禁用，status=1 表示正常）
         if (account.getStatus() == 0) {  // 账号状态为0，表示已被禁用
-            throw new IllegalArgumentException("账号已被禁用");  // 抛出异常，提示账号已被禁用
+            throw new BusinessException(403, "账号已被禁用");  // 抛出403禁止访问异常
         }
         // 登录验证通过，生成JWT Token（传入用户ID和角色信息）
         String token = jwtUtil.generateToken(account.getUserid(), account.getUserid(), account.getRole());  // 生成JWT Token，包含用户ID和角色
@@ -69,6 +73,35 @@ public class AccountService {
         result.put("token", token);  // 将生成的Token放入结果Map
         result.put("user", convertToVO(account));  // 将用户实体转换为视图对象（脱敏后）放入结果Map
         return result;  // 返回包含token和用户信息的Map
+    }
+
+    /**
+     * 用户登出方法
+     * 将当前 JWT Token 加入 Redis 黑名单，使其在过期前无法再被使用。
+     * Gateway AuthFilter 会在每次请求时检查黑名单，被加入黑名单的 token 将返回 401。
+     *
+     * @param token 当前用户的 JWT Token（由 Gateway 通过 X-Auth-Token 请求头传递）
+     */
+    public void logout(String token) {  // 登出方法，接收当前JWT Token
+        if (token == null || token.isEmpty()) {  // 如果token为空，直接返回
+            return;  // 没有token无需处理
+        }
+        log.info("用户登出，token 加入黑名单 / User logout, token added to blacklist");
+        try {
+            // 解析 token 获取剩余有效期，作为黑名单记录的 TTL
+            var claims = jwtUtil.parseToken(token);  // 解析JWT获取claims
+            long expiration = claims.getExpiration().getTime();  // 获取token的过期时间戳（毫秒）
+            long ttl = expiration - System.currentTimeMillis();  // 计算剩余有效期
+            if (ttl > 0) {  // 如果token尚未过期
+                redisTemplate.opsForValue().set(  // 将token存入Redis黑名单
+                        BLACKLIST_PREFIX + token,  // key格式：jwt:blacklist:{完整token}
+                        "revoked",  // value固定为"revoked"，只需存在即表示已撤销
+                        ttl, java.util.concurrent.TimeUnit.MILLISECONDS  // TTL设为token的剩余有效期，过期后自动清除
+                );
+            }
+        } catch (Exception e) {  // 解析失败（如token已过期、格式错误等）
+            log.warn("登出时 token 解析失败，跳过黑名单处理 / Token parse failed during logout, skip blacklist", e);
+        }
     }
 
     /**
@@ -84,12 +117,12 @@ public class AccountService {
         // 检查用户名是否已被占用
         if (accountMapper.selectOne(
                 new LambdaQueryWrapper<Account>().eq(Account::getUserid, dto.getUsername())) != null) {  // 查询数据库中是否已存在该用户名
-            throw new IllegalArgumentException("用户名已存在");  // 用户名已存在，抛出异常
+            throw new BusinessException(409, "用户名已存在");  // 抛出409冲突异常
         }
         // 检查邮箱是否已被注册
         if (accountMapper.selectOne(
                 new LambdaQueryWrapper<Account>().eq(Account::getEmail, dto.getEmail())) != null) {  // 查询数据库中是否已存在该邮箱
-            throw new IllegalArgumentException("邮箱已被注册");  // 邮箱已被注册，抛出异常
+            throw new BusinessException(409, "邮箱已被注册");  // 抛出409冲突异常
         }
         // 创建新的用户账户实体对象
         Account account = new Account();  // 实例化一个新的Account对象
@@ -113,7 +146,7 @@ public class AccountService {
         // 根据ID从数据库查询用户
         Account account = accountMapper.selectById(id);  // 直接用String类型的id查询数据库
         if (account == null) {  // 查询结果为空，说明用户不存在
-            throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
+            throw new BusinessException(404, "用户不存在");  // 抛出404未找到异常
         }
         return convertToVO(account);  // 将用户实体转换为视图对象后返回
     }
@@ -132,11 +165,11 @@ public class AccountService {
         // 根据ID查询用户
         Account account = accountMapper.selectById(userId);  // 直接用String类型的userId查询数据库
         if (account == null) {  // 查询结果为空
-            throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
+            throw new BusinessException(404, "用户不存在");  // 抛出404未找到异常
         }
         // 验证旧密码是否正确
         if (!PasswordUtil.matches(dto.getOldPassword(), account.getPassword())) {  // 将用户输入的旧密码与数据库中加密的密码进行比对
-            throw new IllegalArgumentException("原密码错误");  // 旧密码不匹配，抛出异常
+            throw new BusinessException(400, "原密码错误");  // 抛出400参数错误异常
         }
         // 旧密码验证通过，将新密码加密后更新到数据库
         account.setPassword(PasswordUtil.encode(dto.getNewPassword()));  // 对新密码进行加密处理
@@ -157,7 +190,7 @@ public class AccountService {
         // 根据ID查询用户
         Account account = accountMapper.selectById(userId);  // 直接用String类型的userId查询数据库
         if (account == null) {  // 查询结果为空
-            throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
+            throw new BusinessException(404, "用户不存在");  // 抛出404未找到异常
         }
         account.setEmail(vo.getEmail());  // 更新邮箱
         account.setPhone(vo.getPhone());  // 更新手机号
@@ -210,7 +243,7 @@ public class AccountService {
         // 根据ID查询用户
         Account account = accountMapper.selectById(userId);  // 直接用String类型的userId查询数据库
         if (account == null) {  // 查询结果为空
-            throw new IllegalArgumentException("用户不存在");  // 抛出异常，提示用户不存在
+            throw new BusinessException(404, "用户不存在");  // 抛出404未找到异常
         }
         account.setStatus(status);  // 设置新的状态值（1=启用，0=禁用）
         accountMapper.updateById(account);  // 根据主键更新用户记录

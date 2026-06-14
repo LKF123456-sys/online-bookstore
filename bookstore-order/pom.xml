@@ -79,6 +79,34 @@
             <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
             <version>2.6.0</version>
         </dependency>
+
+        <!-- Resilience4j熔断器：为Feign远程调用提供熔断、重试、限流等容错能力 -->
+        <!-- 当下游服务（如商品服务）频繁失败时，熔断器会快速失败而不是等待超时，防止雪崩效应 -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <!-- Resilience4j的Reactor适配器，Spring Cloud CircuitBreaker底层依赖 -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-reactor</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <!-- Spring Cloud CircuitBreaker：提供统一的熔断器抽象，底层可使用Resilience4j实现 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
+
+        <!-- SkyWalking Trace Toolkit — 支持 @Tag 注解为关键业务方法添加自定义 Span 标签 -->
+        <dependency>
+            <groupId>org.apache.skywalking</groupId>
+            <artifactId>apm-toolkit-trace</artifactId>
+            <version>${skywalking-toolkit.version}</version>
+        </dependency>
     </dependencies>
 
     <!-- 构建配置 -->

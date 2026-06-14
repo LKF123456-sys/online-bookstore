@@ -94,6 +94,7 @@ management:
 
 # ========== 日志配置 ==========
 logging:
+  config: classpath:logback-spring.xml
   level:
     com.bookstore: ${LOG_LEVEL:INFO}  # bookstore项目的日志级别，默认INFO，可通过环境变量LOG_LEVEL调整
     org.springframework: WARN

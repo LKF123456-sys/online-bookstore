@@ -78,6 +78,19 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Redis：用于 JWT token 黑名单和接口限流 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
+        <!-- Prometheus指标导出：将Actuator收集的指标转换为Prometheus格式，供Grafana展示 -->
+        <!-- 网关作为统一入口，需要暴露请求量、延迟、错误率等关键指标 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
     </dependencies>
 
     <!-- 构建配置 -->

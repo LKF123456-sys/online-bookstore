@@ -7,7 +7,10 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  # ============================================================
+  # 后端构建与测试
+  # ============================================================
+  backend-build:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,31 +23,123 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Build with Maven
-      run: mvn clean compile -B
+    - name: Build & Test
+      run: mvn clean package -B
 
-    - name: Run Tests
-      run: mvn test -B
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: '**/target/surefire-reports/*.xml'
 
-    - name: Package
-      run: mvn package -DskipTests -B
-
-    - name: Upload artifact
+    - name: Upload JARs
       uses: actions/upload-artifact@v4
       with:
-        name: bookstore-app
-        path: target/*.jar
+        name: bookstore-jars
+        path: |
+          bookstore-*/target/*.jar
+        retention-days: 7
 
-  docker:
-    needs: build
+  # ============================================================
+  # 前端构建与检查
+  # ============================================================
+  frontend-build:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        project: [bookstore-frontend, bookstore-admin-frontend]
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Build Docker Image
-      run: docker build -t bookstore:latest .
+    - name: Set up Node.js 18
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: ${{ matrix.project }}/package-lock.json
 
-    - name: Verify Docker Image
-      run: docker images bookstore:latest
+    - name: Install dependencies
+      working-directory: ${{ matrix.project }}
+      run: npm ci
+
+    - name: Lint
+      working-directory: ${{ matrix.project }}
+      run: npm run lint --if-present
+
+    - name: Build
+      working-directory: ${{ matrix.project }}
+      run: npm run build
+
+    - name: Upload build output
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.project }}-dist
+        path: ${{ matrix.project }}/dist/
+        retention-days: 7
+
+  # ============================================================
+  # Docker 镜像构建（仅 main 分支）
+  # ============================================================
+  docker:
+    needs: [backend-build, frontend-build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        service:
+          - bookstore-gateway
+          - bookstore-user
+          - bookstore-product
+          - bookstore-order
+          - bookstore-promotion
+          - bookstore-message
+          - bookstore-admin
+        include:
+          - service: bookstore-frontend
+            dockerfile: docker/Dockerfile.frontend
+            context: .
+          - service: bookstore-admin-frontend
+            dockerfile: docker/Dockerfile.admin-frontend
+            context: .
+          - service: bookstore-gateway
+            dockerfile: docker/Dockerfile.service
+            context: .
+          - service: bookstore-user
+            dockerfile: docker/Dockerfile.service
+            context: .
+          - service: bookstore-product
+            dockerfile: docker/Dockerfile.service
+            context: .
+          - service: bookstore-order
+            dockerfile: docker/Dockerfile.service
+            context: .
+          - service: bookstore-promotion
+            dockerfile: docker/Dockerfile.service
+            context: .
+          - service: bookstore-message
+            dockerfile: docker/Dockerfile.service
+            context: .
+          - service: bookstore-admin
+            dockerfile: docker/Dockerfile.service
+            context: .
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ matrix.context }}
+        file: ${{ matrix.dockerfile }}
+        push: false
+        tags: bookverse/${{ matrix.service }}:${{ github.sha }}
+        build-args: |
+          MODULE=${{ matrix.service }}
+
+    - name: Verify Image
+      run: docker images bookverse/${{ matrix.service }}:${{ github.sha }}

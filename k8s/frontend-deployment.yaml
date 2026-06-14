@@ -1,28 +1,116 @@
+# ============================================================
+# BookVerse K8s — 前端 Deployment & Service
+# ============================================================
+
+# ==================== 用户前台前端 (:80) ====================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bookverse-frontend
+  name: bookstore-frontend
+  namespace: bookverse
   labels:
-    app: bookverse-frontend
+    app: bookstore-frontend
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: bookverse-frontend
+      app: bookstore-frontend
   template:
     metadata:
       labels:
-        app: bookverse-frontend
+        app: bookstore-frontend
     spec:
       containers:
-        - name: bookverse-frontend
-          image: bookverse/frontend:latest
+        - name: bookstore-frontend
+          image: bookverse/bookstore-frontend:latest
           ports:
             - containerPort: 80
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
+              memory: "64Mi"
+              cpu: "50m"
             limits:
-              memory: "256Mi"
-              cpu: "500m"
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-frontend
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+# ==================== 管理后台前端 (:81) ====================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore-admin-frontend
+  namespace: bookverse
+  labels:
+    app: bookstore-admin-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookstore-admin-frontend
+  template:
+    metadata:
+      labels:
+        app: bookstore-admin-frontend
+    spec:
+      containers:
+        - name: bookstore-admin-frontend
+          image: bookverse/bookstore-admin-frontend:latest
+          ports:
+            - containerPort: 81
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 81
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 81
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-admin-frontend
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-admin-frontend
+  ports:
+    - port: 81
+      targetPort: 81
+  type: ClusterIP

@@ -1,53 +1,70 @@
+# ============================================================
+# BookVerse K8s — 后端微服务 Deployment & Service
+# 包含 7 个独立微服务：gateway, user, product, order, promotion, message, admin
+# ============================================================
+
+# ==================== 公共环境变量模板（通过 anchor 复用） ====================
+# 注意：K8s YAML 不支持 anchor，以下每个服务独立定义环境变量
+
+# ============================================================
+# 1. Gateway — API 网关 (:8080)
+# ============================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: bookverse-backend
+  name: bookstore-gateway
+  namespace: bookverse
   labels:
-    app: bookverse-backend
+    app: bookstore-gateway
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: bookverse-backend
+      app: bookstore-gateway
   template:
     metadata:
       labels:
-        app: bookverse-backend
+        app: bookstore-gateway
     spec:
       containers:
-        - name: bookverse-backend
-          image: bookverse/backend:latest
+        - name: bookstore-gateway
+          image: bookverse/bookstore-gateway:latest
           ports:
             - containerPort: 8080
           env:
+            - name: SERVER_PORT
+              value: "8080"
             - name: SPRING_PROFILES_ACTIVE
-              value: "prod"
-            - name: MYSQL_HOST
               valueFrom:
                 configMapKeyRef:
                   name: bookverse-config
-                  key: mysql-host
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: NACOS_SERVER_ADDR
             - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: JWT_SECRET
               valueFrom:
-                configMapKeyRef:
-                  name: bookverse-config
-                  key: redis-host
-            - name: RABBITMQ_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: bookverse-config
-                  key: rabbitmq-host
-            - name: ES_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: bookverse-config
-                  key: es-host
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: JWT_SECRET
+            - name: JAVA_OPTS
+              value: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+            - name: SW_AGENT_NAME
+              value: "bookstore-gateway"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap:11800"
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              memory: "256Mi"
+              cpu: "200m"
             limits:
-              memory: "1024Mi"
+              memory: "512Mi"
               cpu: "1000m"
           livenessProbe:
             httpGet:
@@ -61,3 +78,604 @@ spec:
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-gateway
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-gateway
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+---
+# ============================================================
+# 2. User — 用户服务 (:8081)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore-user
+  namespace: bookverse
+  labels:
+    app: bookstore-user
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bookstore-user
+  template:
+    metadata:
+      labels:
+        app: bookstore-user
+    spec:
+      containers:
+        - name: bookstore-user
+          image: bookverse/bookstore-user:latest
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SERVER_PORT
+              value: "8081"
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: NACOS_SERVER_ADDR
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_PASSWORD
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: JWT_SECRET
+            - name: JAVA_OPTS
+              value: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+            - name: SW_AGENT_NAME
+              value: "bookstore-user"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap:11800"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-user
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-user
+  ports:
+    - port: 8081
+      targetPort: 8081
+  type: ClusterIP
+
+---
+# ============================================================
+# 3. Product — 商品服务 (:8082)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore-product
+  namespace: bookverse
+  labels:
+    app: bookstore-product
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bookstore-product
+  template:
+    metadata:
+      labels:
+        app: bookstore-product
+    spec:
+      containers:
+        - name: bookstore-product
+          image: bookverse/bookstore-product:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SERVER_PORT
+              value: "8082"
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: NACOS_SERVER_ADDR
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_PASSWORD
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: JAVA_OPTS
+              value: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+            - name: SW_AGENT_NAME
+              value: "bookstore-product"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap:11800"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-product
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-product
+  ports:
+    - port: 8082
+      targetPort: 8082
+  type: ClusterIP
+
+---
+# ============================================================
+# 4. Order — 订单服务 (:8083)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore-order
+  namespace: bookverse
+  labels:
+    app: bookstore-order
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bookstore-order
+  template:
+    metadata:
+      labels:
+        app: bookstore-order
+    spec:
+      containers:
+        - name: bookstore-order
+          image: bookverse/bookstore-order:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: SERVER_PORT
+              value: "8083"
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: NACOS_SERVER_ADDR
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_PASSWORD
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: JAVA_OPTS
+              value: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+            - name: SW_AGENT_NAME
+              value: "bookstore-order"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap:11800"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-order
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-order
+  ports:
+    - port: 8083
+      targetPort: 8083
+  type: ClusterIP
+
+---
+# ============================================================
+# 5. Promotion — 营销服务 (:8085)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore-promotion
+  namespace: bookverse
+  labels:
+    app: bookstore-promotion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bookstore-promotion
+  template:
+    metadata:
+      labels:
+        app: bookstore-promotion
+    spec:
+      containers:
+        - name: bookstore-promotion
+          image: bookverse/bookstore-promotion:latest
+          ports:
+            - containerPort: 8085
+          env:
+            - name: SERVER_PORT
+              value: "8085"
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: NACOS_SERVER_ADDR
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_PASSWORD
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: JAVA_OPTS
+              value: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+            - name: SW_AGENT_NAME
+              value: "bookstore-promotion"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap:11800"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8085
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8085
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-promotion
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-promotion
+  ports:
+    - port: 8085
+      targetPort: 8085
+  type: ClusterIP
+
+---
+# ============================================================
+# 6. Message — 消息服务 (:8087)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore-message
+  namespace: bookverse
+  labels:
+    app: bookstore-message
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bookstore-message
+  template:
+    metadata:
+      labels:
+        app: bookstore-message
+    spec:
+      containers:
+        - name: bookstore-message
+          image: bookverse/bookstore-message:latest
+          ports:
+            - containerPort: 8087
+          env:
+            - name: SERVER_PORT
+              value: "8087"
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: NACOS_SERVER_ADDR
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_PASSWORD
+            - name: REDIS_HOST
+              value: "redis-service"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: JAVA_OPTS
+              value: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+            - name: SW_AGENT_NAME
+              value: "bookstore-message"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap:11800"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8087
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8087
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-message
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-message
+  ports:
+    - port: 8087
+      targetPort: 8087
+  type: ClusterIP
+
+---
+# ============================================================
+# 7. Admin — 管理后台 BFF (:8086)
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bookstore-admin
+  namespace: bookverse
+  labels:
+    app: bookstore-admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bookstore-admin
+  template:
+    metadata:
+      labels:
+        app: bookstore-admin
+    spec:
+      containers:
+        - name: bookstore-admin
+          image: bookverse/bookstore-admin:latest
+          ports:
+            - containerPort: 8086
+          env:
+            - name: SERVER_PORT
+              value: "8086"
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: NACOS_SERVER_ADDR
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bookverse-config
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bookverse-secret
+                  key: JWT_SECRET
+            - name: JAVA_OPTS
+              value: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+            - name: SW_AGENT_NAME
+              value: "bookstore-admin"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap:11800"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8086
+            initialDelaySeconds: 30
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookstore-admin
+  namespace: bookverse
+spec:
+  selector:
+    app: bookstore-admin
+  ports:
+    - port: 8086
+      targetPort: 8086
+  type: ClusterIP

@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value; // 导入Spring的@Va
 import org.springframework.cloud.gateway.filter.GatewayFilterChain; // 导入网关过滤器链接口，用于将请求传递给下一个过滤器
 import org.springframework.cloud.gateway.filter.GlobalFilter; // 导入全局过滤器接口，实现此接口的过滤器会对所有路由生效
 import org.springframework.core.Ordered; // 导入Ordered接口，用于控制过滤器的执行顺序（数值越小优先级越高）
+import org.springframework.data.redis.core.ReactiveStringRedisTemplate; // 导入响应式Redis模板，用于检查token黑名单
 import org.springframework.http.HttpHeaders; // 导入HTTP请求头常量类，提供标准请求头名称常量如AUTHORIZATION
 import org.springframework.http.HttpStatus; // 导入HTTP状态码枚举类，如UNAUTHORIZED(401)、FORBIDDEN(403)
 import org.springframework.http.server.reactive.ServerHttpRequest; // 导入响应式HTTP请求对象，用于读取请求信息（路径、头信息等）
@@ -51,8 +52,21 @@ public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter
             "/admin/" // 管理后台的所有接口前缀，需要admin角色才能访问
     );
 
-    @Value("${jwt.secret:BookVerseSecretKey2024ForJWTTokenGenerationMustBe256BitsLongEnough}") // 从配置文件注入JWT签名密钥，若未配置则使用默认值
+    /** Redis 黑名单 key 前缀 */
+    private static final String BLACKLIST_PREFIX = "jwt:blacklist:";
+
+    @Value("${jwt.secret}") // 从配置文件注入JWT签名密钥，必须配置，无默认值
     private String jwtSecret; // JWT签名密钥字符串，用于验证Token的完整性
+
+    private final ReactiveStringRedisTemplate redisTemplate; // 响应式Redis模板，用于检查token黑名单
+
+    /**
+     * 构造函数注入 Redis 模板
+     * @param redisTemplate 响应式字符串Redis模板
+     */
+    public AuthFilter(ReactiveStringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
 
     /**
      * 根据密钥字符串生成HMAC签名密钥对象
@@ -96,6 +110,16 @@ public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter
             return unauthorized(exchange, "Invalid or expired token"); // Token验证失败，返回401未授权响应
         }
 
+        // 2.5 检查 Token 是否在黑名单中（已登出的 token）
+        try {
+            Boolean blacklisted = redisTemplate.hasKey(BLACKLIST_PREFIX + token).block(); // 同步检查Redis中是否存在该token的黑名单记录
+            if (Boolean.TRUE.equals(blacklisted)) { // 如果token已被加入黑名单
+                return unauthorized(exchange, "Token has been revoked"); // 返回401，提示token已被撤销
+            }
+        } catch (Exception e) { // Redis不可用时，放行请求（可用性优先，避免Redis故障导致全部请求被拒）
+            // Redis 检查失败时不阻断请求，降级为无黑名单模式
+        }
+
         // 3. 提取用户信息
         String userId = claims.get("userId", String.class); // 从JWT载荷中提取userId字段，类型为String
         String role = claims.get("role", String.class); // 从JWT载荷中提取role字段，类型为String
@@ -113,6 +137,7 @@ public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter
         ServerHttpRequest mutatedRequest = request.mutate() // 创建请求的可变构建器，用于修改请求头
                 .header("X-User-Id", userId) // 将解析出的用户ID注入到自定义请求头中
                 .header("X-User-Role", role != null ? role : "user") // 将用户角色注入到自定义请求头中，若角色为空则默认为"user"
+                .header("X-Auth-Token", token) // 将原始JWT Token注入请求头，供下游服务登出时加入黑名单使用
                 .build(); // 构建修改后的不可变请求对象
 
         return chain.filter(exchange.mutate().request(mutatedRequest).build()); // 用修改后的请求构建新的exchange，传递给过滤器链继续处理

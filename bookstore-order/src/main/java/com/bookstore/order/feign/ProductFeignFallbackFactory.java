@@ -38,17 +38,19 @@ public class ProductFeignFallbackFactory implements FallbackFactory<ProductFeign
         return new ProductFeignClient() {  // 返回ProductFeignClient的匿名内部类实现（即降级逻辑）
             /**
              * 获取商品信息的降级实现
-             * 当商品服务不可用时，记录日志并抛出友好的错误提示
+             * 当商品服务不可用时，返回友好的错误提示Result，而不是直接抛出异常
+             * 这样可以避免因为查询商品详情失败而中断整个业务流程（如订单列表页加载）
              */
             @Override
             public Result<ProductVO> getProductById(String id) {  // 降级方法：获取商品信息
-                log.error("获取商品信息失败: {}", id);  // 记录错误日志，包含商品ID
-                throw new RuntimeException("商品服务暂时不可用，请稍后重试");  // 抛出运行时异常，提示用户稍后重试
+                log.warn("获取商品信息降级处理: id={}, 原因: {}", id, cause.getMessage());  // 记录降级日志（warn级别，非error）
+                return Result.error(503, "商品服务暂时不可用");  // 返回503降级响应，调用方可根据code判断是否降级
             }
 
             /**
              * 更新商品库存的降级实现
-             * 当商品服务不可用时，记录日志并抛出友好的错误提示
+             * 当商品服务不可用时，仍然抛出异常
+             * 库存操作是关键业务路径，不能静默失败（否则会导致库存数据不一致）
              */
             @Override
             public void updateStock(String id, Integer quantity) {  // 降级方法：更新库存

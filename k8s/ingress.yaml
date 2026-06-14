@@ -1,25 +1,58 @@
+# ============================================================
+# BookVerse K8s — Ingress 路由规则
+# 前端请求 → 前端服务，API 请求 → Gateway
+# ============================================================
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: bookverse-ingress
+  namespace: bookverse
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
 spec:
+  ingressClassName: nginx
   rules:
     - host: bookverse.example.com
       http:
         paths:
-          - path: /
+          # 管理后台前端（优先匹配，路径更具体）
+          - path: /admin-frontend
             pathType: Prefix
             backend:
               service:
-                name: bookverse-frontend
+                name: bookstore-admin-frontend
                 port:
-                  number: 80
+                  number: 81
+          # API 请求 → Gateway
           - path: /api
             pathType: Prefix
             backend:
               service:
-                name: bookverse-backend
+                name: bookstore-gateway
+                port:
+                  number: 8080
+          # 管理后台 API → Gateway
+          - path: /admin
+            pathType: Prefix
+            backend:
+              service:
+                name: bookstore-gateway
+                port:
+                  number: 8080
+          # Actuator → Gateway
+          - path: /actuator
+            pathType: Prefix
+            backend:
+              service:
+                name: bookstore-gateway
+                port:
+                  number: 8080
+          # 默认 → 用户前台前端
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bookstore-frontend
                 port:
                   number: 80

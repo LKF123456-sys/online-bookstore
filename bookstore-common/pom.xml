@@ -70,5 +70,19 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        
+        <!-- Micrometer核心：用于自定义监控指标（Counter、Timer、DistributionSummary等） -->
+        <!-- Spring Boot Actuator会自动引入micrometer-core，此处显式声明以确保MetricsConfig可编译 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
+        <!-- SkyWalking Logback Toolkit — 在日志中注入 TraceId，实现日志与链路关联 -->
+        <dependency>
+            <groupId>org.apache.skywalking</groupId>
+            <artifactId>apm-toolkit-logback-1.x</artifactId>
+            <version>${skywalking-toolkit.version}</version>
+        </dependency>
     </dependencies>
 </project>

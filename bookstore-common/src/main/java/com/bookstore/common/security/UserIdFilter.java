@@ -33,6 +33,11 @@ public class UserIdFilter implements Filter {  // 实现Servlet Filter接口
             // 将userId设置为request attribute，供@Controller使用@RequestAttribute获取
             httpRequest.setAttribute("userId", userId);  // 将用户ID设置到请求属性中
         }
+        // 提取网关注入的原始 JWT Token，供登出时加入黑名单使用
+        String authToken = httpRequest.getHeader("X-Auth-Token");  // 从请求头中获取原始JWT Token
+        if (authToken != null && !authToken.isEmpty()) {  // 判断Token是否为空
+            httpRequest.setAttribute("authToken", authToken);  // 将Token设置到请求属性中
+        }
         chain.doFilter(request, response);  // 继续执行后续的过滤器或目标资源
     }
 }

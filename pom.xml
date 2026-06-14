@@ -73,6 +73,10 @@
         <mybatis-plus.version>3.5.7</mybatis-plus.version>       <!-- MyBatis-Plus 版本（ORM框架增强版） -->
         <jjwt.version>0.12.6</jjwt.version>                      <!-- JWT 库版本（Token 生成和验证） -->
         <springdoc.version>2.6.0</springdoc.version>             <!-- SpringDoc 版本（API 文档自动生成） -->
+        <spotbugs.version>4.8.6</spotbugs.version>               <!-- SpotBugs 版本（静态分析工具，检测潜在Bug） -->
+        <findbugs-jsr305.version>3.0.2</findbugs-jsr305.version> <!-- JSR-305 注解库版本（配合SpotBugs使用） -->
+        <jacoco.version>0.8.12</jacoco.version>                  <!-- JaCoCo 版本（代码覆盖率统计） -->
+        <skywalking-toolkit.version>9.1.0</skywalking-toolkit.version>  <!-- SkyWalking Toolkit 版本（日志注入和链路追踪注解） -->
     </properties>
 
     <!-- ========== 依赖版本管理（dependencyManagement）==========
@@ -229,6 +233,72 @@
                         <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
                     </systemPropertyVariables>
                 </configuration>
+            </plugin>
+            <!-- SpotBugs 静态分析插件
+                 自动检测代码中的潜在Bug、性能问题和不良编码模式
+                 配置说明：
+                   effort=Max    最大分析深度，检测更多问题
+                   threshold=Medium 中等阈值，平衡误报和漏报
+                   xmlOutput=true 输出XML格式报告，便于CI集成
+            -->
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <version>${spotbugs.version}</version>
+                <configuration>
+                    <effort>Max</effort>
+                    <threshold>Medium</threshold>
+                    <xmlOutput>true</xmlOutput>
+                    <excludeFilterFile>${project.basedir}/spotbugs-exclude.xml</excludeFilterFile>
+                </configuration>
+            </plugin>
+            <!-- Maven Enforcer 插件：确保构建环境满足要求
+                 检查项：
+                   1. Maven 版本 >= 3.9（确保支持最新特性）
+                   2. Java 版本 >= 21（确保使用正确的JDK编译）
+                   3. 禁止重复的POM依赖版本（避免版本冲突）
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-versions</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>3.9</version>
+                                </requireMavenVersion>
+                                <requireJavaVersion>
+                                    <version>21</version>
+                                </requireJavaVersion>
+                                <banDuplicatePomDependencyVersions/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- JaCoCo 代码覆盖率插件
+                 功能：统计单元测试的代码覆盖率，生成可视化报告
+                 执行阶段：
+                   prepare-agent — 在测试前注入Java Agent，收集覆盖率数据
+                   report       — 在test阶段后生成HTML/XML覆盖率报告
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
