@@ -76,6 +76,12 @@ spring:
     openfeign:
       circuitbreaker:
         enabled: true  # 启用 Feign 的熔断器支持（配合 Resilience4j 使用）
+      client:
+        config:
+          default:  # 全局默认配置（所有 Feign 客户端共享，可被 Nacos 动态覆盖）
+            connect-timeout: 5000  # TCP 连接超时：5秒，快速发现网络不可达
+            read-timeout: 10000    # 读取响应超时：10秒，给下游足够处理时间
+            logger-level: BASIC    # Feign 日志级别：BASIC 仅记录请求方法/URL/响应状态码
 
 # ==================== MyBatis-Plus配置 ====================
 mybatis-plus:
@@ -136,3 +142,27 @@ resilience4j:
     instances:
       product-service:
         base-config: default
+  retry:  # Resilience4j 重试配置：对瞬时故障自动重试，提高调用成功率
+    configs:
+      default:  # 默认重试策略
+        max-attempts: 3  # 最大重试次数：3次（含首次调用）
+        wait-duration: 500ms  # 重试间隔：500ms，给下游短暂恢复时间
+        retry-exceptions:  # 仅对以下异常类型触发重试
+          - java.io.IOException  # 网络 IO 异常（连接重置、超时等）
+          - java.util.concurrent.TimeoutException  # 超时异常
+    instances:
+      product-service:  # 商品服务专用重试实例
+        base-config: default
+        tags:
+          service: bookstore-product
+  ratelimiter:  # Resilience4j 限流器：防止对下游服务发起过多请求
+    configs:
+      default:
+        limit-for-period: 100  # 每个周期内允许的最大请求数
+        limit-refresh-period: 1s  # 周期刷新间隔：1秒
+        timeout-duration: 0s  # 被限流时不等待，立即拒绝
+    instances:
+      product-service:
+        base-config: default
+        tags:
+          service: bookstore-product

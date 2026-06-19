@@ -108,7 +108,7 @@ public class RedirectController extends BaseController {
                     if (user != null) {
                         userId = String.valueOf(user.get("userid"));
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) { log.warn("从Session获取用户ID失败: {}", e.getMessage()); }
             }
             // 方式3：回退方案 - 从订单服务直接查询订单获取userId
             if (userId == null || userId.isEmpty()) {
@@ -121,7 +121,7 @@ public class RedirectController extends BaseController {
                     if (orderData != null) {
                         userId = String.valueOf(orderData.get("userid"));
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) { log.warn("从订单服务查询用户ID失败, orderId={}: {}", orderId, e.getMessage()); }
             }
             // 执行支付状态更新
             if (userId != null && !userId.isEmpty()) {

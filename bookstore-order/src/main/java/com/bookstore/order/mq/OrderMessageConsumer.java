@@ -49,6 +49,12 @@ public class OrderMessageConsumer {
     /** 幂等性记录的过期时间（24小时），超时后自动清理，防止Redis数据无限增长 */
     private static final long IDEMPOTENT_EXPIRE_HOURS = 24;
 
+    /** 消息投递计数 Key 前缀（用于 DLQ 路由判断） */
+    private static final String RETRY_COUNT_KEY_PREFIX = "mq:retry:";
+
+    /** 最大投递次数（超过后路由到 DLQ，防止毒消息无限循环） */
+    private static final int MAX_DELIVERY_COUNT = 3;
+
     // ==================== 支付消息消费 ====================
 
     /**
@@ -101,8 +107,13 @@ public class OrderMessageConsumer {
         } catch (Exception e) {
             log.error("处理订单支付消息异常: message={}", message, e);  // 记录异常日志
             try {
-                // 拒绝消息，让RabbitMQ重新投递（requeue=true表示重新入队）
-                channel.basicNack(deliveryTag, false, true);  // 第三个参数true表示消息重新入队
+                // 检查重试次数：如果已经重试超过 3 次，发送到死信队列（DLQ）而不是无限重入队
+                if (isRetryExhausted(messageId)) {
+                    log.error("支付消息重试次数耗尽，路由到死信队列: messageId={}", messageId);
+                    channel.basicNack(deliveryTag, false, false);  // requeue=false → 路由到 DLQ
+                } else {
+                    channel.basicNack(deliveryTag, false, true);  // requeue=true → 重新入队重试
+                }
             } catch (Exception ackError) {
                 log.error("消息拒绝(ACK)操作失败", ackError);  // ACK本身也失败时记录日志
             }
@@ -164,7 +175,12 @@ public class OrderMessageConsumer {
         } catch (Exception e) {
             log.error("处理订单取消消息异常: message={}", message, e);
             try {
-                channel.basicNack(deliveryTag, false, true);  // 消息重新入队
+                if (isRetryExhausted(messageId)) {
+                    log.error("取消消息重试次数耗尽，路由到死信队列: messageId={}", messageId);
+                    channel.basicNack(deliveryTag, false, false);  // requeue=false → 路由到 DLQ
+                } else {
+                    channel.basicNack(deliveryTag, false, true);  // requeue=true → 重新入队重试
+                }
             } catch (Exception ackError) {
                 log.error("消息拒绝(ACK)操作失败", ackError);
             }
@@ -237,6 +253,32 @@ public class OrderMessageConsumer {
                     log.error("库存恢复最终失败，需要人工介入: productId={}, quantity={}", productId, quantity);
                 }
             }
+        }
+    }
+
+    // ==================== DLQ 路由辅助方法 ====================
+
+    /**
+     * 判断消息是否已超过最大重试次数
+     * 使用 Redis 计数器追踪每条消息的投递次数
+     * 超过 MAX_DELIVERY_COUNT 次后返回 true，消息将被路由到 DLQ
+     *
+     * @param messageId 消息唯一标识
+     * @return true=已超过最大重试次数，应路由到 DLQ
+     */
+    private boolean isRetryExhausted(String messageId) {
+        if (messageId == null) return false;
+        String key = RETRY_COUNT_KEY_PREFIX + messageId;
+        try {
+            Long count = redisTemplate.opsForValue().increment(key);
+            // 首次访问时设置 1 小时过期
+            if (count != null && count == 1L) {
+                redisTemplate.expire(key, 1, TimeUnit.HOURS);
+            }
+            return count != null && count > MAX_DELIVERY_COUNT;
+        } catch (Exception e) {
+            log.warn("DLQ 重试计数查询失败，默认允许重入队: messageId={}", messageId, e);
+            return false;  // Redis 不可用时默认允许重试
         }
     }
 }

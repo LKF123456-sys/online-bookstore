@@ -4,7 +4,9 @@ import com.bookstore.common.api.Result;  // 导入统一结果封装类，用于
 import com.bookstore.common.api.dto.LoginDTO;  // 导入登录数据传输对象（DTO），包含用户名和密码等登录信息
 import com.bookstore.common.api.dto.RegisterDTO;  // 导入注册数据传输对象（DTO），包含用户名、密码、邮箱等注册信息
 import com.bookstore.user.service.AccountService;  // 导入用户账户服务类，负责处理用户相关的业务逻辑
-import jakarta.servlet.http.HttpServletRequest;  // 导入HTTP请求对象，用于获取请求头中的token
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.ResponseCookie;  // 导入HTTP请求对象，用于获取请求头中的token
 import jakarta.validation.Valid;  // 导入参数校验注解，用于触发对DTO对象的字段校验（如非空、格式等）
 import lombok.RequiredArgsConstructor;  // 导入Lombok注解，自动生成包含final字段的构造函数，用于依赖注入
 import org.springframework.web.bind.annotation.*;  // 导入Spring Web相关的注解（@RestController、@RequestMapping、@PostMapping等）
@@ -38,9 +40,14 @@ public class AuthController {
      * @param dto 登录信息对象（DTO），包含用户名（username）和密码（password），由前端JSON自动转换而来
      * @return 统一结果对象，成功时包含token和用户信息（Map），失败时包含错误提示信息
      */
-    @PostMapping("/login")  // POST请求映射，处理 /api/auth/login 路径的登录请求
-    public Result<Map<String, Object>> login(@Valid @RequestBody LoginDTO dto) {  // @Valid 触发参数校验，@RequestBody 将JSON请求体转换为LoginDTO对象
-        return Result.success(accountService.login(dto));  // 调用服务层的登录方法，用Result包装成功响应返回给前端
+    @PostMapping("/login")
+    public Result<Map<String, Object>> login(@Valid @RequestBody LoginDTO dto, HttpServletResponse response) {
+        Map<String, Object> result = accountService.login(dto);
+        String token = (String) result.get("token");
+        ResponseCookie cookie = ResponseCookie.from("BOOKSTORE_TOKEN", token)
+                .httpOnly(true).secure(false).path("/").maxAge(86400).sameSite("Lax").build();
+        response.addHeader("Set-Cookie", cookie.toString());
+        return Result.success(result);
     }
 
     /**
@@ -64,10 +71,13 @@ public class AuthController {
      * @param request HTTP 请求对象，用于从请求属性中获取 Gateway 注入的原始 token
      * @return 统一结果对象，成功时无额外数据
      */
-    @PostMapping("/logout")  // POST请求映射，处理 /api/auth/logout 路径的登出请求
-    public Result<Void> logout(HttpServletRequest request) {  // 接收HttpServletRequest以获取token
-        String token = (String) request.getAttribute("authToken");  // 从请求属性中获取 Gateway 注入的原始JWT Token
-        accountService.logout(token);  // 调用服务层的登出方法，将token加入Redis黑名单
-        return Result.success();  // 登出成功，返回成功结果
+    @PostMapping("/logout")
+    public Result<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        String token = (String) request.getAttribute("authToken");
+        accountService.logout(token);
+        ResponseCookie cookie = ResponseCookie.from("BOOKSTORE_TOKEN", "")
+                .httpOnly(true).secure(false).path("/").maxAge(0).sameSite("Lax").build();
+        response.addHeader("Set-Cookie", cookie.toString());
+        return Result.success();
     }
 }

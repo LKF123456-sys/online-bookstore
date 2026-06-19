@@ -6,73 +6,133 @@ import org.springframework.context.annotation.Configuration;  // 导入Configura
 
 /**
  * RabbitMQ消息队列配置类
- * 定义订单相关的交换机、队列和路由规则
+ * 定义订单相关的交换机、队列、路由规则以及死信队列（DLQ）
  *
  * 消息流转流程：
  *   生产者 -> Exchange（交换机） -> 根据RoutingKey路由到对应Queue -> 消费者
+ *   消费失败 -> 重试3次后 -> 路由到死信队列（DLQ） -> 人工介入
  *
- * 本配置定义了两种消息场景：
- *   1. 订单支付成功（order.pay）：支付成功后发送通知，触发下游处理（积分、通知等）
- *   2. 订单取消（order.cancel）：取消订单后发送通知，触发库存恢复等后续操作
+ * 面试亮点：
+ *   1. 死信队列（DLQ）：消费失败的消息不会丢失，而是路由到 DLQ 等待人工处理
+ *   2. 消息持久化：所有队列和交换机都设置了 durable=true
+ *   3. TTL 机制：死信消息 7 天后自动过期清理
+ *   4. 消息可靠性保障：生产者确认 + 手动 ACK + 幂等消费 + DLQ 兜底
  */
 @Configuration  // 标记为Spring配置类，类中的@Bean方法会被Spring容器管理
 public class RabbitMQConfig {
 
-    // ==================== 交换机定义 ====================
+    // ==================== 常量定义 ====================
+
+    /** 死信交换机名称 */
+    private static final String DLX_EXCHANGE = "order.dlx.exchange";
+
+    /** 死信路由键前缀 */
+    private static final String DLX_PAY_ROUTING_KEY = "dlx.order.pay";
+    private static final String DLX_CANCEL_ROUTING_KEY = "dlx.order.cancel";
+
+    /** 消息在死信队列中的存活时间（7天，单位毫秒） */
+    private static final int DLQ_TTL_MS = 7 * 24 * 3600 * 1000;
+
+    // ==================== 业务交换机 ====================
 
     /**
      * 订单交换机（Direct类型）
      * Direct交换机会根据消息的RoutingKey精确匹配到对应的队列
-     * 例如：routingKey="order.pay" 的消息会被路由到绑定了 "order.pay" 的队列
      */
     @Bean
-    public DirectExchange orderExchange() {  // 创建并注册一个Direct类型的交换机
-        return new DirectExchange("order.exchange");  // 交换机名称为 "order.exchange"
+    public DirectExchange orderExchange() {
+        return new DirectExchange("order.exchange");
     }
 
-    // ==================== 队列定义 ====================
+    // ==================== 死信交换机 ====================
+
+    /**
+     * 死信交换机（DLX）
+     * 当消息消费失败被 nack（requeue=false）或消息过期时，会被路由到此交换机
+     */
+    @Bean
+    public DirectExchange orderDlxExchange() {
+        return ExchangeBuilder.directExchange(DLX_EXCHANGE)
+                .durable(true)
+                .build();
+    }
+
+    // ==================== 业务队列（带死信路由） ====================
 
     /**
      * 订单支付队列
-     * 用于接收订单支付成功的消息
-     * 消费者监听此队列后，可执行发送通知、增加用户积分等下游操作
+     * 配置了死信路由：消费失败的消息会被自动转发到死信队列
+     * x-dead-letter-exchange：指定死信交换机
+     * x-dead-letter-routing-key：指定死信路由键
      */
     @Bean
-    public Queue orderPayQueue() {  // 创建并注册支付队列
-        return QueueBuilder.durable("order.pay.queue").build();  // durable=true 表示队列持久化，RabbitMQ重启后队列仍然存在
+    public Queue orderPayQueue() {
+        return QueueBuilder.durable("order.pay.queue")
+                .withArgument("x-dead-letter-exchange", DLX_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", DLX_PAY_ROUTING_KEY)
+                .build();
     }
 
     /**
      * 订单取消队列
-     * 用于接收订单取消的消息
-     * 消费者监听此队列后，可执行库存恢复、发送取消通知等操作
+     * 同样配置了死信路由
      */
     @Bean
-    public Queue orderCancelQueue() {  // 创建并注册取消队列
-        return QueueBuilder.durable("order.cancel.queue").build();  // 队列持久化
+    public Queue orderCancelQueue() {
+        return QueueBuilder.durable("order.cancel.queue")
+                .withArgument("x-dead-letter-exchange", DLX_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", DLX_CANCEL_ROUTING_KEY)
+                .build();
     }
 
-    // ==================== 绑定关系（Binding）====================
+    // ==================== 死信队列 ====================
 
     /**
-     * 将支付队列绑定到订单交换机，路由键为 "order.pay"
-     * 当生产者向 order.exchange 发送 routingKey="order.pay" 的消息时，消息会被路由到 order.pay.queue
+     * 支付死信队列
+     * 存储消费失败的支付消息，等待人工介入处理
+     * 设置 TTL = 7天，超期自动清理，避免无限堆积
      */
     @Bean
-    public Binding orderPayBinding(Queue orderPayQueue, DirectExchange orderExchange) {  // 绑定支付队列到交换机
-        return BindingBuilder.bind(orderPayQueue)  // 绑定支付队列
-                .to(orderExchange)                  // 到订单交换机
-                .with("order.pay");                 // 路由键为 "order.pay"
+    public Queue orderPayDlq() {
+        return QueueBuilder.durable("order.pay.dlq")
+                .ttl(DLQ_TTL_MS)
+                .build();
     }
 
     /**
-     * 将取消队列绑定到订单交换机，路由键为 "order.cancel"
-     * 当生产者向 order.exchange 发送 routingKey="order.cancel" 的消息时，消息会被路由到 order.cancel.queue
+     * 取消死信队列
+     * 存储消费失败的取消消息，等待人工介入处理
      */
     @Bean
-    public Binding orderCancelBinding(Queue orderCancelQueue, DirectExchange orderExchange) {  // 绑定取消队列到交换机
-        return BindingBuilder.bind(orderCancelQueue)  // 绑定取消队列
-                .to(orderExchange)                     // 到订单交换机
-                .with("order.cancel");                 // 路由键为 "order.cancel"
+    public Queue orderCancelDlq() {
+        return QueueBuilder.durable("order.cancel.dlq")
+                .ttl(DLQ_TTL_MS)
+                .build();
+    }
+
+    // ==================== 绑定关系（Binding） ====================
+
+    /** 将支付队列绑定到订单交换机 */
+    @Bean
+    public Binding orderPayBinding(Queue orderPayQueue, DirectExchange orderExchange) {
+        return BindingBuilder.bind(orderPayQueue).to(orderExchange).with("order.pay");
+    }
+
+    /** 将取消队列绑定到订单交换机 */
+    @Bean
+    public Binding orderCancelBinding(Queue orderCancelQueue, DirectExchange orderExchange) {
+        return BindingBuilder.bind(orderCancelQueue).to(orderExchange).with("order.cancel");
+    }
+
+    /** 将支付死信队列绑定到死信交换机 */
+    @Bean
+    public Binding orderPayDlqBinding(Queue orderPayDlq, DirectExchange orderDlxExchange) {
+        return BindingBuilder.bind(orderPayDlq).to(orderDlxExchange).with(DLX_PAY_ROUTING_KEY);
+    }
+
+    /** 将取消死信队列绑定到死信交换机 */
+    @Bean
+    public Binding orderCancelDlqBinding(Queue orderCancelDlq, DirectExchange orderDlxExchange) {
+        return BindingBuilder.bind(orderCancelDlq).to(orderDlxExchange).with(DLX_CANCEL_ROUTING_KEY);
     }
 }

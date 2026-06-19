@@ -84,5 +84,15 @@
             <artifactId>apm-toolkit-logback-1.x</artifactId>
             <version>${skywalking-toolkit.version}</version>
         </dependency>
+
+        <!-- Logstash Logback Encoder — JSON 结构化日志输出
+             用于生产环境的 ELK Stack（Elasticsearch + Logstash + Kibana）日志采集
+             将日志格式化为 JSON，包含时间戳、日志级别、线程名、异常堆栈等结构化字段
+             比纯文本日志更便于 Kibana 搜索、过滤和聚合分析 -->
+        <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>7.4</version>
+        </dependency>
     </dependencies>
 </project>

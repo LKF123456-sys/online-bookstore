@@ -50,4 +50,10 @@ public class Orders {  // 订单实体类
     private String exprdate;  // 信用卡过期日期
     private String cardtype;  // 信用卡类型（如Visa、MasterCard等）
     private String locale;  // 地区设置，用于国际化
+
+    @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
+    private LocalDateTime createTime;  // 创建时间，插入时自动填充
+
+    @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;  // 更新时间，插入和更新时自动填充
 }

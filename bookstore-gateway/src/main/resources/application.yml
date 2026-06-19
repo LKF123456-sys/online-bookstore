@@ -117,6 +117,14 @@ spring:
           filters:
             - StripPrefix=0  # 不去掉路径前缀
 
+        # AI 智能体服务路由 - 处理 AI 对话、SSE 流式通信等请求
+        - id: bookstore-agent  # 路由的唯一标识
+          uri: lb://bookstore-agent  # 目标服务地址，通过负载均衡访问bookstore-agent服务
+          predicates:
+            - Path=/api/agent/**  # 匹配AI智能体相关的所有路径
+          filters:
+            - StripPrefix=0  # 不去掉路径前缀
+
         # 管理服务 - 静态资源路由 - 处理后台管理页面的图片、CSS、JS等静态文件
         - id: bookstore-admin-static  # 路由的唯一标识
           uri: lb://bookstore-admin  # 目标服务地址，静态资源也由管理服务提供

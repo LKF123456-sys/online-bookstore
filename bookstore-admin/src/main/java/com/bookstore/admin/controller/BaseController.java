@@ -10,6 +10,7 @@ import com.bookstore.admin.service.AdminLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 控制器基类 - 提供所有页面控制器共用的工具方法
@@ -20,6 +21,7 @@ import jakarta.servlet.http.HttpSession;
  *
  * 所有拆分后的控制器均继承此类，以复用核心工具方法，避免代码重复。
  */
+@Slf4j
 public abstract class BaseController {
 
     /** RestTemplate用于向其他微服务发送HTTP请求（通过服务名进行负载均衡调用） */
@@ -62,7 +64,7 @@ public abstract class BaseController {
                             SimpleDateFormat sdf = new SimpleDateFormat(
                                 str.length() == 19 ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd HH:mm");
                             entry.setValue(sdf.parse(str));
-                        } catch (Exception ignored) {}
+                        } catch (Exception e) { log.debug("日期解析失败: {}", str); }
                     }
                 } else if (value instanceof Map) {
                     deepConvertDates(value);

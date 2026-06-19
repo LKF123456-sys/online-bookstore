@@ -71,42 +71,28 @@ export interface UpdateProfileRequest {
 }
 
 // Product
+// Backend Product entity fields: productid, category, name, descn, author, price, image, stock, sales, isRecommend, status
+// ProductVO adds @JsonProperty/compat: id, description, imageUrl
 export interface ProductVO {
-  id?: number
   productid?: string
-  title?: string
+  id?: number                  // @JsonProperty alias for productid
   name?: string
-  author?: string
-  isbn?: string
-  publisher?: string
-  publishDate?: string
-  price: number
-  salePrice?: number
-  sale_price?: number
-  description?: string
-  descn?: string
-  image?: string
-  images?: string
-  categoryId?: number
   category?: string
-  categoryName?: string
-  categoryname?: string
+  descn?: string
+  description?: string         // @JsonProperty alias for descn
+  author?: string
+  price: number
+  image?: string
+  imageUrl?: string            // @JsonProperty alias for image
   stock: number
   sales: number
-  rating?: number
-  ratingCount?: number
-  rating_count?: number
+  isRecommend?: number
   status: number
-  is_recommend?: number
-  createdAt?: string
-  updatedAt?: string
 }
 
 // Category
 export interface Category {
-  id?: number | string
   categoryid?: string
-  name?: string
   categoryname?: string
   categorydesc?: string
   parentId?: number
@@ -117,19 +103,13 @@ export interface Category {
 // Cart
 export interface CartItem {
   itemid?: number
-  itemid_str?: string
   cartid?: number
-  productId?: number
   productid?: string
   quantity: number
   product?: ProductVO
-  title?: string
   name?: string
   price?: number
-  salePrice?: number
-  sale_price?: number
   image?: string
-  imageUrl?: string
   subtotal?: number
   stock?: number
 }
@@ -146,44 +126,33 @@ export interface AddToCartRequest {
 
 // Order
 export interface OrderItemVO {
-  id?: number
   orderitemid?: string
-  orderId?: number
   orderid?: string
-  productId?: number
   productid?: string
   quantity: number
   price: number
   product?: ProductVO
-  title?: string
   name?: string
-  productName?: string
   image?: string
 }
 
+// Backend Orders entity fields (all lowercase): orderid, userid, orderdate, totalprice, originalprice,
+// discountamount, couponname, status, billtofirstname, billtolastname, billaddr1, billaddr2, billcity,
+// billstate, billzip, billcountry, shipaddr1, shipaddr2, shipcity, shipstate, shipzip, shipcountry,
+// shiptofirstname, shiptolastname, courier, creditcard, exprdate, cardtype, locale
+// OrderVO adds @JsonProperty: shippingAddress, billingAddress, totalAmount
 export interface OrderVO {
-  id?: number
   orderid?: string
-  orderNo?: string
-  orderno?: string
-  userId?: number
   userid?: string
   status: string | number
-  statusText?: string
   totalprice?: number
   originalprice?: number
-  totalAmount?: number
-  totalamount?: number
-  discountAmount?: number
+  totalAmount?: number          // @JsonProperty alias
   discountamount?: number
-  payAmount?: number
-  payamount?: number
   couponname?: string
   orderdate?: string
-  billingAddress?: string
-  billingaddress?: string
-  shippingAddress?: string
-  shippingaddress?: string
+  billingAddress?: string       // @JsonProperty alias
+  shippingAddress?: string      // @JsonProperty alias
   billtofirstname?: string
   billtolastname?: string
   billaddr1?: string
@@ -205,25 +174,7 @@ export interface OrderVO {
   exprdate?: string
   cardtype?: string
   locale?: string
-  couponId?: number
-  couponid?: string
-  paymentMethod?: string
-  paymentmethod?: string
-  paymentTime?: string
-  paymenttime?: string
-  shippingTime?: string
-  shippingtime?: string
-  completionTime?: string
-  completiontime?: string
-  cancelTime?: string
-  canceltime?: string
-  cancelReason?: string
-  cancelreason?: string
   items: OrderItemVO[]
-  createdAt?: string
-  updatedAt?: string
-  created_at?: string
-  updated_at?: string
 }
 
 export interface CreateOrderRequest {
@@ -235,24 +186,15 @@ export interface CreateOrderRequest {
 
 // Review
 export interface ReviewVO {
-  id?: number
   reviewid?: string
-  userId?: number
   userid?: string
-  productId?: number
   productid?: string
-  orderId?: number
   orderid?: string
   rating: number
   content: string
   username?: string
   product?: ProductVO
-  productTitle?: string
-  producttitle?: string
-  productImage?: string
-  productimage?: string
   createdAt?: string
-  created_at?: string
 }
 
 export interface CreateReviewRequest {
@@ -264,22 +206,15 @@ export interface CreateReviewRequest {
 
 // Coupon
 export interface CouponVO {
-  id?: number
   couponid?: string
-  name?: string
   couponname?: string
   type: number
   discount: number
-  minAmount?: number
   minamount?: number
-  startTime?: string
-  start_time?: string
-  endTime?: string
-  end_time?: string
-  totalCount?: number
-  total_count?: number
-  claimedCount?: number
-  claimed_count?: number
+  starttime?: string
+  endtime?: string
+  totalcount?: number
+  claimedcount?: number
   status: number
   claimed?: boolean
 }

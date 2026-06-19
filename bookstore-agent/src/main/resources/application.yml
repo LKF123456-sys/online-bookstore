@@ -1,0 +1,105 @@
+server:
+  port: 8089  # AI 智能体服务端口
+
+spring:
+  config:
+    import: "optional:nacos:bookstore-agent.yml"  # Nacos 远程配置
+  application:
+    name: bookstore-agent  # Nacos 服务名
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10   # AI 服务数据库连接池较小（主要存聊天记录）
+      minimum-idle: 3
+      idle-timeout: 30000
+      connection-timeout: 10000
+      max-lifetime: 1800000
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 2
+          max-wait: -1ms
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: yml
+        import-check:
+          enabled: false
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 5000
+            read-timeout: 30000    # AI 调用链路较长，增大读取超时
+            logger-level: BASIC
+
+# ============================================================
+# AI 模型配置 — 通过 agent.model.provider 切换底层 LLM
+# ============================================================
+agent:
+  model:
+    provider: ${AI_PROVIDER:openai}  # openai / ollama / dashscope
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-placeholder}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      model: ${OPENAI_MODEL:gpt-4o-mini}
+      temperature: ${AI_TEMPERATURE:0.7}
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:qwen2.5:7b}
+      temperature: ${AI_TEMPERATURE:0.7}
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY:sk-placeholder}
+      model: ${DASHSCOPE_MODEL:qwen-plus}
+      temperature: ${AI_TEMPERATURE:0.7}
+  memory:
+    max-history: 20          # Redis 短期记忆窗口大小（消息数）
+    session-ttl: 3600        # 会话空闲过期时间（秒）
+
+# MyBatis-Plus
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+  mapper-locations: classpath:mapper/*.xml
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+# 日志
+logging:
+  level:
+    com.bookstore: ${LOG_LEVEL:INFO}
+    org.springframework.ai: DEBUG  # 开发阶段打印 AI 调用详情
+    org.springframework: WARN
+
+# SpringDoc
+springdoc:
+  api-docs:
+    enabled: true

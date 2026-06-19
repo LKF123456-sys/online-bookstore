@@ -21,6 +21,7 @@ COPY bookstore-order/pom.xml bookstore-order/
 COPY bookstore-promotion/pom.xml bookstore-promotion/
 COPY bookstore-message/pom.xml bookstore-message/
 COPY bookstore-admin/pom.xml bookstore-admin/
+COPY bookstore-agent/pom.xml bookstore-agent/
 
 # 预下载依赖（此层在 pom 不变时可复用缓存）
 RUN mvn dependency:go-offline -B || true

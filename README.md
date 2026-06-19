@@ -4,12 +4,14 @@
 
 ## 项目简介
 
-BookVerse 是一个功能完整的在线图书销售平台，采用 Spring Cloud 微服务架构 + Vue 3 前后端分离设计。项目包含用户管理、商品管理、订单处理、营销活动、消息通知等核心业务模块，并提供独立的管理后台进行数据可视化和运营管控。
+BookVerse 是一个功能完整的在线图书销售平台，采用 Spring Cloud 微服务架构 + Vue 3 前后端分离设计。项目包含用户管理、商品管理、订单处理、营销活动、消息通知等核心业务模块，集成 AI 多智能体系统提供智能客服与推荐能力，并提供独立的管理后台进行数据可视化和运营管控。
 
 ### 核心特性
 
 - **前后端分离**：Vue 3 + TypeScript 构建用户前台和管理后台，Naive UI 组件库
-- **微服务架构**：8 个独立服务模块，松耦合高内聚
+- **微服务架构**：9 个独立服务模块（含 AI 智能体服务），松耦合高内聚
+- **AI 多智能体**：Spring AI 集成，4 Agent 协作架构（客服/推荐/评价/编排），Tool Calling + SSE 流式对话
+- **多模型切换**：OpenAI / Ollama / DashScope 三种 LLM 通过配置一键切换
 - **安全认证**：JJWT 签名验证 + RBAC 角色鉴权，网关统一拦截
 - **Token 黑名单**：基于 Redis 实现 JWT 登出即失效，Gateway 实时校验
 - **接口限流**：Spring Cloud Gateway + Redis 令牌桶，登录/注册接口防暴力破解
@@ -43,6 +45,8 @@ BookVerse 是一个功能完整的在线图书销售平台，采用 Spring Cloud
 | MyBatis-Plus | 3.5.7 | ORM 持久层框架 |
 | JJWT | 0.12.6 | JWT 令牌生成与验证 |
 | SpringDoc OpenAPI | 2.6.0 | API 文档生成 |
+| Spring AI | 1.0.0-M6 | LLM 集成框架（ChatModel、Tool Calling、SSE 流式） |
+| Resilience4j | 2.2.0 | 熔断器 + 重试 + 限流 |
 
 ### 前端
 
@@ -105,12 +109,23 @@ online-bookstore/
 ├── bookstore-admin/                 # 管理后台 BFF（端口 8086）
 ├── bookstore-message/               # 消息服务（端口 8087）
 │
+├── bookstore-agent/                 # AI 智能体服务（端口 8089）
+│   └── src/main/java/.../agent/
+│       ├── config/                  # AiModelConfig（多模型切换）、SecurityConfig
+│       ├── agent/                   # 4 Agent（客服、推荐、评价、编排）
+│       ├── tools/                   # Tool Calling 工具集（@Tool 注解）
+│       ├── feign/                   # Feign 客户端（调用现有微服务）
+│       ├── controller/              # ChatController（SSE 流式 + 同步对话）
+│       ├── service/                 # ChatMemoryService（Redis + MySQL 双层记忆）
+│       ├── entity/                  # ChatHistory、ChatSession
+│       └── mapper/                  # MyBatis-Plus Mapper
+│
 ├── bookstore-frontend/              # 用户前台（Vue 3 + TS + Naive UI）
 │   └── src/
-│       ├── api/                     # 8 个 API 模块
+│       ├── api/                     # 9 个 API 模块（含 agent.ts AI 对话接口）
 │       ├── components/              # AppHeader、AppFooter、ProductCard
 │       ├── layouts/                 # DefaultLayout
-│       ├── pages/                   # 13 个页面（首页、商品、购物车、订单、个人中心...）
+│       ├── pages/                   # 14 个页面（首页、商品、购物车、订单、个人中心、智能助手...）
 │       ├── router/                  # 路由配置（懒加载 + 路由守卫）
 │       ├── stores/                  # Pinia 状态管理（auth、cart、message）
 │       └── types/                   # TypeScript 类型定义
@@ -141,6 +156,10 @@ online-bookstore/
 │   ├── frontend-deployment.yaml     # 前端 Deployment + Service
 │   └── ingress.yaml                 # Ingress 路由规则
 ├── Jenkinsfile                      # Jenkins CI/CD 流水线（per-service 镜像构建 + 自动 rollback）
+├── docs/                            # 项目文档
+│   ├── grafana/                     # Grafana Dashboard JSON（AI Agent 监控面板）
+│   ├── prometheus/                  # Prometheus 告警规则 YAML
+│   └── benchmark/                   # 性能基准测试脚本 + 参考数据
 └── .github/workflows/ci.yml         # GitHub Actions CI（后端+前端并行构建 + per-service Docker）
 ```
 
@@ -157,6 +176,7 @@ online-bookstore/
 | **bookstore-product** | 8082 | 商品服务 |
 | **bookstore-order** | 8083 | 订单服务 |
 | **bookstore-promotion** | 8085 | 营销服务 |
+| **bookstore-agent** | 8089 | AI 智能体服务（SSE 流式对话） |
 | **bookstore-admin** | 8086 | 管理后台 BFF（API 代理 + 操作日志） |
 | **bookstore-message** | 8087 | 消息服务 |
 | Nacos | 8848 | 注册中心 / 配置中心 |
@@ -707,6 +727,12 @@ bookstore-common（基础层）
 | bookstore-common | `BusinessExceptionTest` | 3 | 业务异常类 |
 | bookstore-admin | `AuthRestControllerTest` | 9 | 管理后台认证接口 |
 | bookstore-admin | `UserServiceTest` | 5 | 管理后台用户服务(Feign代理) |
+| bookstore-agent | `OrderToolsTest` | 8 | 订单工具集（查询详情/列表/取消 + 异常降级） |
+| bookstore-agent | `ProductToolsTest` | 6 | 商品工具集（搜索/详情/推荐/热销 + 空结果处理） |
+| bookstore-agent | `ReviewToolsTest` | 4 | 评价工具集（获取评价/平均分计算/降级） |
+| bookstore-agent | `ChatMemoryServiceTest` | 6 | 对话记忆（Redis+MySQL双层存储/降级/会话管理） |
+| bookstore-agent | `ChatControllerTest` | 6 | 对话控制器（同步/SSE流式/Agent路由/历史管理） |
+| bookstore-agent | `AgentNameTest` | 3 | Agent 名称标识验证 |
 
 ### 运行测试
 
@@ -720,6 +746,7 @@ mvn test -pl bookstore-user
 mvn test -pl bookstore-order
 mvn test -pl bookstore-product
 mvn test -pl bookstore-gateway
+mvn test -pl bookstore-agent
 
 # 查看测试报告
 # 各模块 target/surefire-reports/ 目录下
@@ -732,6 +759,69 @@ mvn test -pl bookstore-gateway
 - **AssertJ / JUnit Assertions**：断言库
 - **Spring MockMvc**：Controller 层 HTTP 请求模拟（admin 模块测试）
 - **Reactor Test**：Gateway 响应式过滤器测试
+
+---
+
+## AI 多智能体系统
+
+### 架构概览
+
+```
+用户 ──→ Chat.vue (SSE) ──→ Gateway ──→ ChatController
+                                              │
+                                    ┌─────────┴──────────┐
+                                    │   OrchestratorAgent │ ← LLM 意图分类
+                                    └─────────┬──────────┘
+                           ┌──────────┬───────┴──────┬──────────┐
+                    CustomerService  Product  ReviewAnalysis   通用对话
+                       Agent        Recommend    Agent
+                           │          │            │
+                    ┌──────┴───┐ ┌────┴────┐ ┌────┴────┐
+                    OrderTools │ProductTools│ │ReviewTools│
+                           │          │            │
+                    ┌──────┴───┐ ┌────┴────┐ ┌────┴────┐
+                    bookstore-  bookstore-  bookstore-
+                      order     product    promotion
+```
+
+### Agent 列表
+
+| Agent | 职责 | Tools | 触发意图 |
+|-------|------|-------|---------|
+| **CustomerServiceAgent** | 订单查询、取消、状态跟踪 | `queryOrderDetail`, `queryOrderList`, `cancelOrder` | "我的订单"、"取消订单" |
+| **ProductRecommendAgent** | 图书搜索、个性化推荐 | `searchProducts`, `getProductDetail`, `getRecommendProducts`, `getHotProducts` | "推荐好书"、"找一本书" |
+| **ReviewAnalysisAgent** | 评价情感分析、口碑摘要 | `getProductReviews` | "这本书评价怎么样" |
+| **OrchestratorAgent** | 意图分类 + 路由分发 | — | 所有用户消息的入口 |
+
+### API 端点
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/agent/chat` | 同步对话（完整回复） |
+| GET | `/api/agent/chat/stream` | SSE 流式对话（逐 token 实时推送） |
+| GET | `/api/agent/history` | 获取会话历史 |
+| DELETE | `/api/agent/history` | 清空会话历史 |
+
+### 模型配置
+
+通过环境变量 `AI_PROVIDER` 切换底层 LLM：
+
+```bash
+# OpenAI（默认）
+AI_PROVIDER=openai OPENAI_API_KEY=sk-xxx OPENAI_BASE_URL=https://api.openai.com
+
+# Ollama（本地模型）
+AI_PROVIDER=ollama OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=qwen2.5:7b
+
+# DashScope（通义千问，OpenAI 兼容协议）
+AI_PROVIDER=dashscope DASHSCOPE_API_KEY=sk-xxx
+```
+
+### 可观测性
+
+- **Grafana Dashboard**：`docs/grafana/bookstore-agent-dashboard.json`（12 个面板：请求量、P99延迟、Agent路由分布、Feign成功率等）
+- **Prometheus 告警规则**：`docs/prometheus/bookstore-agent-alerts.yml`（8 条告警：服务宕机、延迟过高、错误率、内存、连接池等）
+- **压测脚本**：`docs/benchmark/benchmark.sh`（wrk 压测 + 参考数据文档）
 
 ---
 

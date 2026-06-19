@@ -1,4 +1,4 @@
-import http from './index'
+﻿import http from './index'
 import type { LoginRequest, LoginResponse, RegisterRequest, UserVO, UpdatePasswordRequest, UpdateProfileRequest } from '@/types'
 
 export function login(data: LoginRequest): Promise<LoginResponse> {
@@ -19,4 +19,9 @@ export function updatePassword(data: UpdatePasswordRequest): Promise<void> {
 
 export function updateProfile(data: UpdateProfileRequest): Promise<UserVO> {
   return http.put('/api/auth/profile', data)
+}
+
+
+export function logoutApi(): Promise<void> {
+  return http.post('/api/auth/logout')
 }

@@ -1,0 +1,137 @@
+# ============================================================
+# BookVerse AI Agent — Prometheus 告警规则
+# 部署路径：/etc/prometheus/rules/bookstore-agent-alerts.yml
+# ============================================================
+
+groups:
+  - name: bookstore-agent-alerts
+    interval: 30s
+
+    rules:
+      # ========== 服务可用性 ==========
+
+      # 服务宕机告警：Agent 服务连续 1 分钟不可用
+      - alert: AgentServiceDown
+        expr: up{application="bookstore-agent"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: ai-platform
+        annotations:
+          summary: "AI Agent 服务宕机"
+          description: "bookstore-agent 实例 {{ $labels.instance }} 已持续 1 分钟不可用"
+          runbook: "检查服务进程、Nacos 注册状态、JVM 内存"
+
+      # ========== 对话延迟告警 ==========
+
+      # SSE 流式对话 P99 延迟超过 10 秒
+      - alert: AgentChatStreamHighLatency
+        expr: histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{application="bookstore-agent", uri="/api/agent/chat/stream"}[5m])) > 10
+        for: 3m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "SSE 流式对话延迟过高"
+          description: "P99 延迟 = {{ $value | humanizeDuration }}，超过 10 秒阈值"
+          runbook: "检查 LLM 提供商 API 状态、网络延迟、Agent 线程池"
+
+      # 同步对话 P95 延迟超过 30 秒
+      - alert: AgentChatSyncHighLatency
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application="bookstore-agent", uri="/api/agent/chat"}[5m])) > 30
+        for: 3m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "同步对话延迟过高"
+          description: "P95 延迟 = {{ $value | humanizeDuration }}，超过 30 秒阈值"
+          runbook: "检查 LLM API 响应时间、Tool Calling 链路耗时"
+
+      # ========== 错误率告警 ==========
+
+      # 5xx 错误率超过 5%
+      - alert: AgentHighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{application="bookstore-agent", status=~"5.."}[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{application="bookstore-agent"}[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: ai-platform
+        annotations:
+          summary: "Agent 服务 5xx 错误率超过 5%"
+          description: "当前 5xx 错误率 = {{ $value | humanizePercentage }}"
+          runbook: "检查 LLM API 配额、Feign 下游服务状态、日志中的异常堆栈"
+
+      # ========== Feign 远程调用告警 ==========
+
+      # Feign 调用失败率超过 10%
+      - alert: AgentFeignHighFailureRate
+        expr: |
+          1 - (
+            sum(rate(http_client_requests_seconds_count{application="bookstore-agent", status=~"2.."}[5m]))
+            /
+            sum(rate(http_client_requests_seconds_count{application="bookstore-agent"}[5m]))
+          ) > 0.10
+        for: 3m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "Agent Feign 调用失败率超过 10%"
+          description: "Feign 失败率 = {{ $value | humanizePercentage }}"
+          runbook: "检查下游微服务（order/product/promotion）健康状态和 Resilience4j 熔断器状态"
+
+      # ========== 资源告警 ==========
+
+      # JVM 堆内存使用率超过 85%
+      - alert: AgentHighMemoryUsage
+        expr: |
+          jvm_memory_used_bytes{application="bookstore-agent", area="heap"}
+          /
+          jvm_memory_max_bytes{application="bookstore-agent", area="heap"}
+          > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "Agent JVM 堆内存使用率超过 85%"
+          description: "当前使用率 = {{ $value | humanizePercentage }}"
+          runbook: "检查内存泄漏、考虑增大 -Xmx 参数、分析 GC 日志"
+
+      # MySQL 连接池使用率超过 80%
+      - alert: AgentDBConnectionPoolExhausted
+        expr: |
+          hikaricp_connections_active{application="bookstore-agent"}
+          /
+          hikaricp_connections_max{application="bookstore-agent"}
+          > 0.80
+        for: 2m
+        labels:
+          severity: warning
+          team: ai-platform
+        annotations:
+          summary: "Agent MySQL 连接池即将耗尽"
+          description: "活跃连接 = {{ $value }}"
+          runbook: "检查慢查询、连接泄漏、考虑增大 hikari.maximum-pool-size"
+
+      # ========== 业务告警 ==========
+
+      # 对话请求量突增（可能是攻击或异常流量）
+      - alert: AgentTrafficSpike
+        expr: |
+          sum(rate(http_server_requests_seconds_count{application="bookstore-agent", uri=~"/api/agent/chat.*"}[1m]))
+          >
+          sum(rate(http_server_requests_seconds_count{application="bookstore-agent", uri=~"/api/agent/chat.*"}[1h])) * 3
+        for: 2m
+        labels:
+          severity: info
+          team: ai-platform
+        annotations:
+          summary: "Agent 对话流量异常突增"
+          description: "当前 QPS 是过去 1 小时均值的 {{ $value }} 倍"
+          runbook: "检查是否有刷接口行为、考虑启用网关限流"

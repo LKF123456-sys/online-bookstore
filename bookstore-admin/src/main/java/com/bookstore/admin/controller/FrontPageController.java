@@ -80,6 +80,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("categories", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("首页加载分类列表失败: {}", e.getMessage());
             model.addAttribute("categories", new ArrayList<>());
         }
         // --- 获取推荐商品（最多8个） ---
@@ -92,6 +93,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("recommended", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("首页加载推荐商品失败: {}", e.getMessage());
             model.addAttribute("recommended", new ArrayList<>());
         }
         // --- 获取热销商品（最多8个） ---
@@ -104,6 +106,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("bestsellers", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("首页加载热销商品失败: {}", e.getMessage());
             model.addAttribute("bestsellers", new ArrayList<>());
         }
         // --- 获取商品列表（分页，每页12个） ---
@@ -120,6 +123,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("products", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("首页加载商品列表失败: {}", e.getMessage());
             model.addAttribute("products", new ArrayList<>());
         }
         model.addAttribute("announcementList", new ArrayList<>());
@@ -156,6 +160,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("products", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("搜索商品失败: {}", e.getMessage());
             model.addAttribute("products", new ArrayList<>());
         }
         try {
@@ -167,6 +172,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("categories", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("搜索页加载分类列表失败: {}", e.getMessage());
             model.addAttribute("categories", new ArrayList<>());
         }
         model.addAttribute("keyword", keyword);
@@ -196,6 +202,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("product", new HashMap<>());
             }
         } catch (Exception e) {
+            log.warn("加载商品详情失败, id={}: {}", id, e.getMessage());
             model.addAttribute("product", new HashMap<>());
         }
         try {
@@ -207,6 +214,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("categories", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("商品详情页加载分类列表失败: {}", e.getMessage());
             model.addAttribute("categories", new ArrayList<>());
         }
         try {
@@ -218,6 +226,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("relatedBooks", new ArrayList<>());
             }
         } catch (Exception e) {
+            log.warn("加载相关推荐商品失败: {}", e.getMessage());
             model.addAttribute("relatedBooks", new ArrayList<>());
         }
         model.addAttribute("guessYouLike", new ArrayList<>());
@@ -262,6 +271,7 @@ public class FrontPageController extends BaseController {
                         }
                     }
                 } catch (Exception e) {
+                    log.warn("加载购物车数据失败: {}", e.getMessage());
                     // 购物车加载失败，显示空购物车（不中断页面渲染）
                 }
             }
@@ -273,6 +283,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("recommendedBooks", recResult.get("data"));
             }
         } catch (Exception e) {
+            log.warn("购物车页加载推荐商品失败: {}", e.getMessage());
             model.addAttribute("recommendedBooks", new ArrayList<>());
         }
         return "cart";
@@ -311,6 +322,7 @@ public class FrontPageController extends BaseController {
             restTemplate.put("http://bookstore-order/api/cart/item", entity);
             result.put("success", true);
         } catch (Exception e) {
+            log.warn("更新购物车商品数量失败, productId={}: {}", productId, e.getMessage());
             result.put("success", false);
             result.put("message", "更新失败");
         }
@@ -335,7 +347,7 @@ public class FrontPageController extends BaseController {
                 HttpEntity<Void> entity = new HttpEntity<>(headers);
                 restTemplate.exchange("http://bookstore-order/api/cart/item/" + productId,
                     HttpMethod.DELETE, entity, String.class);
-            } catch (Exception ignored) {}
+            } catch (Exception e) { log.warn("删除购物车商品失败, productId={}: {}", productId, e.getMessage()); }
         }
         return "redirect:/cart";
     }
@@ -357,7 +369,7 @@ public class FrontPageController extends BaseController {
                 HttpEntity<Void> entity = new HttpEntity<>(headers);
                 restTemplate.exchange("http://bookstore-order/api/cart/clear",
                     HttpMethod.DELETE, entity, String.class);
-            } catch (Exception ignored) {}
+            } catch (Exception e) { log.warn("清空购物车失败: {}", e.getMessage()); }
         }
         return "redirect:/cart";
     }
@@ -411,6 +423,7 @@ public class FrontPageController extends BaseController {
                 result.put("message", "添加失败");
             }
         } catch (Exception e) {
+            log.warn("添加商品到购物车失败, productId={}: {}", idToUse, e.getMessage());
             result.put("success", false);
             result.put("message", "请先登录");
         }
@@ -457,6 +470,7 @@ public class FrontPageController extends BaseController {
                 }
             }
         } catch (Exception e) {
+            log.warn("订单确认页加载购物车失败: {}", e.getMessage());
             // 购物车加载失败，显示空购物车
         }
         model.addAttribute("cart", cartItems);
@@ -551,11 +565,12 @@ public class FrontPageController extends BaseController {
                     try {
                         restTemplate.exchange("http://bookstore-order/api/cart/clear",
                             HttpMethod.DELETE, entity, String.class);
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) { log.warn("提交订单后清空购物车失败: {}", e.getMessage()); }
                     return "redirect:/payment?orderId=" + orderData.get("orderid");
                 }
             }
         } catch (Exception e) {
+            log.warn("提交订单失败: {}", e.getMessage());
             return "redirect:/order?msg=error";
         }
         return "redirect:/order?msg=error";
@@ -626,7 +641,7 @@ public class FrontPageController extends BaseController {
                                             }
                                         }
                                     }
-                                } catch (Exception ignored) {}
+                                } catch (Exception e) { log.warn("查询商品评价状态失败, productId={}: {}", pid, e.getMessage()); }
                             }
                         }
                     }
@@ -637,6 +652,7 @@ public class FrontPageController extends BaseController {
                 return "redirect:/order/history";
             }
         } catch (Exception e) {
+            log.warn("加载订单详情失败, orderId={}: {}", orderId, e.getMessage());
             return "redirect:/order/history";
         }
         model.addAttribute("cartSize", 0);
@@ -711,7 +727,7 @@ public class FrontPageController extends BaseController {
                                         }
                                     }
                                 }
-                            } catch (Exception ignored) {}
+                            } catch (Exception e) { log.warn("查询订单商品评价状态失败: {}", e.getMessage()); }
                         }
                     }
                 }
@@ -719,6 +735,7 @@ public class FrontPageController extends BaseController {
                 model.addAttribute("cntPending", cntPending);
                 model.addAttribute("reviewedOrderIds", reviewedOrderIds);
             } catch (Exception e) {
+                log.warn("加载订单历史失败: {}", e.getMessage());
                 model.addAttribute("orderList", new ArrayList<>());
             }
         } else {
@@ -763,6 +780,7 @@ public class FrontPageController extends BaseController {
                     model.addAttribute("orderAmount", orderData.get("totalprice"));
                 }
             } catch (Exception e) {
+                log.warn("加载支付页订单信息失败, orderId={}: {}", orderId, e.getMessage());
                 model.addAttribute("order", new HashMap<>());
             }
         }
@@ -806,7 +824,7 @@ public class FrontPageController extends BaseController {
                         model.addAttribute("orderAmount", orderData.get("totalprice"));
                     }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) { log.warn("加载支付结果数据失败, orderId={}: {}", orderId, e.getMessage()); }
         }
     }
 
@@ -861,6 +879,7 @@ public class FrontPageController extends BaseController {
                     model.addAttribute("orderAmount", orderData.get("totalprice"));
                 }
             } catch (Exception e) {
+                log.warn("加载支付子页面数据失败, orderId={}: {}", orderId, e.getMessage());
                 model.addAttribute("orderAmount", "加载失败");
             }
         }
@@ -907,6 +926,7 @@ public class FrontPageController extends BaseController {
                 result.put("message", "操作失败");
             }
         } catch (Exception e) {
+            log.warn("确认收货失败, orderId={}: {}", orderId, e.getMessage());
             result.put("success", false);
             result.put("message", "确认收货失败：" + e.getMessage());
         }

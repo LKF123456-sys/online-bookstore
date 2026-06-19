@@ -11,6 +11,7 @@ import com.bookstore.common.api.vo.PageResult;
 import com.bookstore.common.api.vo.ProductVO;
 import com.bookstore.common.entity.OrderItem;
 import com.bookstore.common.entity.Orders;
+import com.bookstore.common.entity.OrderStatus;
 import com.bookstore.common.util.SnowflakeIdGenerator;
 import com.bookstore.order.feign.ProductFeignClient;
 import com.bookstore.order.mapper.OrderItemMapper;
@@ -79,7 +80,7 @@ class OrderServiceTest {
         sampleOrder = new Orders();
         sampleOrder.setOrderid("ORD001");
         sampleOrder.setUserid("user001");
-        sampleOrder.setStatus("待支付");
+        sampleOrder.setStatus(OrderStatus.PENDING_PAYMENT.getStatus());
         sampleOrder.setTotalprice(new BigDecimal("178.00"));
         sampleOrder.setOriginalprice(new BigDecimal("178.00"));
         sampleOrder.setDiscountamount(BigDecimal.ZERO);
@@ -229,7 +230,7 @@ class OrderServiceTest {
 
             assertDoesNotThrow(() -> orderService.payOrder("user001", "ORD001"));
 
-            assertEquals("已支付", sampleOrder.getStatus());
+            assertEquals(OrderStatus.PAID.getStatus(), sampleOrder.getStatus());
             verify(ordersMapper).updateById(sampleOrder);
         }
 
@@ -246,7 +247,7 @@ class OrderServiceTest {
         @Test
         @DisplayName("支付失败 — 已支付订单不能重复支付")
         void shouldThrowWhenOrderAlreadyPaid() {
-            sampleOrder.setStatus("已支付");
+            sampleOrder.setStatus(OrderStatus.PAID.getStatus());
             when(ordersMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(sampleOrder);
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -258,7 +259,7 @@ class OrderServiceTest {
         @Test
         @DisplayName("支付失败 — 已取消订单不能支付")
         void shouldThrowWhenOrderCancelled() {
-            sampleOrder.setStatus("已取消");
+            sampleOrder.setStatus(OrderStatus.CANCELLED.getStatus());
             when(ordersMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(sampleOrder);
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -283,7 +284,7 @@ class OrderServiceTest {
 
             assertDoesNotThrow(() -> orderService.cancelOrder("user001", "ORD001"));
 
-            assertEquals("已取消", sampleOrder.getStatus());
+            assertEquals(OrderStatus.CANCELLED.getStatus(), sampleOrder.getStatus());
             // 验证恢复库存（传入负数）
             verify(productFeignClient).updateStock("P001", -2);
         }
@@ -301,7 +302,7 @@ class OrderServiceTest {
         @Test
         @DisplayName("取消失败 — 只有待支付订单才能取消")
         void shouldThrowWhenOrderNotPendingPayment() {
-            sampleOrder.setStatus("已发货");
+            sampleOrder.setStatus(OrderStatus.SHIPPED.getStatus());
             when(ordersMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(sampleOrder);
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -319,13 +320,13 @@ class OrderServiceTest {
         @Test
         @DisplayName("确认成功 — 已发货订单变为已完成")
         void shouldConfirmReceiveSuccessfully() {
-            sampleOrder.setStatus("已发货");
+            sampleOrder.setStatus(OrderStatus.SHIPPED.getStatus());
             when(ordersMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(sampleOrder);
             when(ordersMapper.updateById(any(Orders.class))).thenReturn(1);
 
             assertDoesNotThrow(() -> orderService.confirmReceive("user001", "ORD001"));
 
-            assertEquals("已完成", sampleOrder.getStatus());
+            assertEquals(OrderStatus.COMPLETED.getStatus(), sampleOrder.getStatus());
         }
 
         @Test
@@ -348,13 +349,13 @@ class OrderServiceTest {
         @Test
         @DisplayName("发货成功 — 已支付订单变为已发货")
         void shouldShipOrderSuccessfully() {
-            sampleOrder.setStatus("已支付");
+            sampleOrder.setStatus(OrderStatus.PAID.getStatus());
             when(ordersMapper.selectById("ORD001")).thenReturn(sampleOrder);
             when(ordersMapper.updateById(any(Orders.class))).thenReturn(1);
 
             assertDoesNotThrow(() -> orderService.shipOrder("ORD001"));
 
-            assertEquals("已发货", sampleOrder.getStatus());
+            assertEquals(OrderStatus.SHIPPED.getStatus(), sampleOrder.getStatus());
         }
 
         @Test
@@ -450,7 +451,7 @@ class OrderServiceTest {
             when(orderItemMapper.selectList(any(LambdaQueryWrapper.class)))
                     .thenReturn(List.of(sampleOrderItem));
 
-            PageResult<OrderVO> result = orderService.getOrderList("user001", 1, 10, "待支付");
+            PageResult<OrderVO> result = orderService.getOrderList("user001", 1, 10, OrderStatus.PENDING_PAYMENT.getStatus());
 
             assertNotNull(result);
             verify(ordersMapper).selectPage(any(Page.class), any(LambdaQueryWrapper.class));

@@ -32,4 +32,7 @@ public class Account {  // 用户账户实体类
     @TableField(value = "created_at", fill = FieldFill.INSERT)  // 字段映射注解，指定数据库列名并设置插入时自动填充
     private LocalDateTime createdAt;  // 账号创建时间
     private String avatar;  // 用户头像URL地址
+
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;  // 更新时间，插入和更新时自动填充
 }

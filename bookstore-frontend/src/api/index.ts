@@ -1,4 +1,4 @@
-import axios from 'axios'
+﻿import axios from 'axios'
 import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import router from '@/router'
@@ -26,13 +26,10 @@ function showMessage(msg: string, type: 'error' | 'success' | 'warning' | 'info'
   }
 }
 
-// Request interceptor - add auth token
+// Request interceptor - attach httpOnly cookie for auth
 http.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const authStore = useAuthStore()
-    if (authStore.token) {
-      config.headers.Authorization = `Bearer ${authStore.token}`
-    }
+    config.withCredentials = true
     return config
   },
   (error) => {

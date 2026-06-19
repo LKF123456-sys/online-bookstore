@@ -1,0 +1,275 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+  ],
+  "title": "BookVerse AI Agent Dashboard",
+  "description": "AI 智能体服务监控面板 — 对话延迟、模型调用、Agent 路由分布",
+  "tags": ["bookstore", "ai-agent", "spring-ai"],
+  "timezone": "Asia/Shanghai",
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "🤖 Agent 对话请求量（每分钟）",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "rate(http_server_requests_seconds_count{application=\"bookstore-agent\", uri=~\"/api/agent/.*\"}[1m]) * 60",
+          "legendFormat": "{{uri}} - {{method}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqpm",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "⏱️ SSE 流式对话 P99 延迟",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, rate(http_server_requests_seconds_bucket{application=\"bookstore-agent\", uri=\"/api/agent/chat/stream\"}[5m]))",
+          "legendFormat": "P99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 10 }
+            ]
+          },
+          "min": 0,
+          "max": 30
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "⏱️ 同步对话 P95 延迟",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{application=\"bookstore-agent\", uri=\"/api/agent/chat\"}[5m]))",
+          "legendFormat": "P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 15 }
+            ]
+          },
+          "min": 0,
+          "max": 60
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "🔀 Agent 路由分布",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum by (agent_name) (increase(agent_route_total[1h]))",
+          "legendFormat": "{{agent_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "📊 Feign 远程调用成功率",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(http_client_requests_seconds_count{application=\"bookstore-agent\", status=~\"2..\"}[5m])) / sum(rate(http_client_requests_seconds_count{application=\"bookstore-agent\"}[5m])) * 100",
+          "legendFormat": "成功率 %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 99 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "💾 Redis 会话记忆使用量",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "redis_memory_used_bytes{application=\"bookstore-agent\"}",
+          "legendFormat": "Redis 内存"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 104857600 },
+              { "color": "red", "value": 524288000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "⚡ JVM 堆内存使用",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{application=\"bookstore-agent\", area=\"heap\"}",
+          "legendFormat": "已用"
+        },
+        {
+          "expr": "jvm_memory_max_bytes{application=\"bookstore-agent\", area=\"heap\"}",
+          "legendFormat": "最大"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      }
+    },
+    {
+      "id": 8,
+      "title": "🔥 错误率（5xx 响应）",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"bookstore-agent\", status=~\"5..\"}[5m])) * 60",
+          "legendFormat": "5xx/min"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"bookstore-agent\", status=~\"4..\"}[5m])) * 60",
+          "legendFormat": "4xx/min"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "📝 对话消息吞吐量",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 24 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"bookstore-agent\", uri=~\"/api/agent/chat.*\"}[5m])) * 60",
+          "legendFormat": "对话/min"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "🔄 活跃会话数",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 24 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "count(count by (session_id) (redis_key_length{application=\"bookstore-agent\", key=~\"chat:history:.*\"}))",
+          "legendFormat": "会话"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "📡 健康状态",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 24 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "up{application=\"bookstore-agent\"}",
+          "legendFormat": "Agent"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "🗄️ MySQL 连接池",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 24 },
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active{application=\"bookstore-agent\"} / hikaricp_connections_max{application=\"bookstore-agent\"} * 100",
+          "legendFormat": "使用率"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 90 }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

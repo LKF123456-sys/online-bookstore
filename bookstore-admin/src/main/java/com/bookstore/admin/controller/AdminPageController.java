@@ -176,12 +176,12 @@ public class AdminPageController extends BaseController {
             Map<String, Object> data = (Map<String, Object>) result.get("data");
             if (data != null) model.addAttribute("lowStockItems", data.getOrDefault("records", new ArrayList<>()));
             else model.addAttribute("lowStockItems", new ArrayList<>());
-        } catch (Exception e) { model.addAttribute("lowStockItems", new ArrayList<>()); }
+        } catch (Exception e) { log.warn("加载低库存商品列表失败: {}", e.getMessage()); model.addAttribute("lowStockItems", new ArrayList<>()); }
         // 最近操作日志（前5条）
         try {
             PageResult<Map<String, Object>> logResult = adminLogService.getLogList(1, 5, null);
             model.addAttribute("recentLogs", logResult.getRecords());
-        } catch (Exception e) { model.addAttribute("recentLogs", new ArrayList<>()); }
+        } catch (Exception e) { log.warn("加载最近操作日志失败: {}", e.getMessage()); model.addAttribute("recentLogs", new ArrayList<>()); }
         // 未读消息数
         try {
             String resp = restTemplate.getForObject(
@@ -192,6 +192,7 @@ public class AdminPageController extends BaseController {
             model.addAttribute("adminUnreadMsg", unreadCount);
             model.addAttribute("adminUnreadMsgCount", unreadCount);
         } catch (Exception e) {
+            log.warn("加载未读消息数失败: {}", e.getMessage());
             model.addAttribute("adminUnreadMsg", 0);
             model.addAttribute("adminUnreadMsgCount", 0);
         }
@@ -216,7 +217,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             Map<String, Object> data = (Map<String, Object>) result.get("data");
             if (data != null) totalProducts = ((Number) data.get("total")).longValue();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("获取商品总数失败: {}", e.getMessage()); }
 
         try {
             String resp = restTemplate.getForObject(
@@ -224,7 +225,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             java.util.List<?> catList = (java.util.List<?>) result.get("data");
             model.addAttribute("activeProducts", catList != null ? catList.size() : 0);
-        } catch (Exception ignored) { model.addAttribute("activeProducts", 0); }
+        } catch (Exception e) { log.warn("获取分类列表失败: {}", e.getMessage()); model.addAttribute("activeProducts", 0); }
 
         try {
             String resp = restTemplate.getForObject(
@@ -232,7 +233,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             Map<String, Object> data = (Map<String, Object>) result.get("data");
             if (data != null) totalUsers = ((Number) data.get("total")).longValue();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("获取用户总数失败: {}", e.getMessage()); }
 
         try {
             String resp = restTemplate.getForObject(
@@ -249,7 +250,7 @@ public class AdminPageController extends BaseController {
                     }
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("获取订单列表及总销售额失败: {}", e.getMessage()); }
 
         try {
             String resp = restTemplate.getForObject(
@@ -257,7 +258,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             Map<String, Object> data = (Map<String, Object>) result.get("data");
             if (data != null) pendingOrders = ((Number) data.get("total")).longValue();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("获取待处理订单数失败: {}", e.getMessage()); }
 
         String[] statuses = {"待支付", "待发货", "已发货", "已完成", "已取消"};
         String[] countKeys = {"pendingCount", "paidCount", "shippingCount", "completedCount", "cancelledCount"};
@@ -269,7 +270,7 @@ public class AdminPageController extends BaseController {
                 Map<String, Object> data = (Map<String, Object>) result.get("data");
                 long count = data != null ? ((Number) data.get("total")).longValue() : 0;
                 model.addAttribute(countKeys[i], count);
-            } catch (Exception e) { model.addAttribute(countKeys[i], 0); }
+            } catch (Exception e) { log.warn("获取订单状态[{}]数量失败: {}", statuses[i], e.getMessage()); model.addAttribute(countKeys[i], 0); }
         }
         model.addAttribute("pendingPay", model.getAttribute("pendingCount"));
         model.addAttribute("pendingShip", model.getAttribute("paidCount"));
@@ -280,7 +281,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             bestsellers = (java.util.List<?>) result.get("data");
             if (bestsellers == null) bestsellers = new ArrayList<>();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("获取热销商品失败: {}", e.getMessage()); }
 
         try {
             String resp = restTemplate.getForObject(
@@ -288,7 +289,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             Map<String, Object> data = (Map<String, Object>) result.get("data");
             if (data != null) totalCoupons = ((Number) data.get("total")).longValue();
-        } catch (Exception ignored) {}
+        } catch (Exception e) { log.warn("获取优惠券总数失败: {}", e.getMessage()); }
 
         model.addAttribute("productCount", totalProducts);
         model.addAttribute("totalProducts", totalProducts);
@@ -334,6 +335,7 @@ public class AdminPageController extends BaseController {
                 model.addAttribute("pages", data.get("totalPages"));
             }
         } catch (Exception e) {
+            log.warn("加载商品列表失败: {}", e.getMessage());
             model.addAttribute("productList", new ArrayList<>());
         }
         try {
@@ -341,6 +343,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> catResult = parseJson(catResp);
             model.addAttribute("categories", catResult.get("data"));
         } catch (Exception e) {
+            log.warn("加载分类列表失败: {}", e.getMessage());
             model.addAttribute("categories", new ArrayList<>());
         }
         model.addAttribute("keyword", keyword);
@@ -361,6 +364,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             model.addAttribute("categories", result.get("data"));
         } catch (Exception e) {
+            log.warn("加载分类列表失败: {}", e.getMessage());
             model.addAttribute("categories", new ArrayList<>());
         }
         return "admin/product/add";
@@ -382,6 +386,7 @@ public class AdminPageController extends BaseController {
                 Map<String, Object> result = parseJson(resp);
                 model.addAttribute("product", result.get("data"));
             } catch (Exception e) {
+                log.warn("加载商品详情失败, id={}: {}", id, e.getMessage());
                 model.addAttribute("product", new HashMap<>());
             }
         }
@@ -390,6 +395,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             model.addAttribute("categories", result.get("data"));
         } catch (Exception e) {
+            log.warn("加载分类列表失败: {}", e.getMessage());
             model.addAttribute("categories", new ArrayList<>());
         }
         return "admin/product/edit";
@@ -422,6 +428,7 @@ public class AdminPageController extends BaseController {
                 model.addAttribute("pageSize", data.get("pageSize"));
             }
         } catch (Exception e) {
+            log.warn("加载库存列表失败: {}", e.getMessage());
             model.addAttribute("productList", new ArrayList<>());
         }
         return "admin/product/stock";
@@ -441,6 +448,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             model.addAttribute("productList", result.get("data"));
         } catch (Exception e) {
+            log.warn("加载热销商品列表失败: {}", e.getMessage());
             model.addAttribute("productList", new ArrayList<>());
         }
         return "admin/product/bestseller";
@@ -479,6 +487,7 @@ public class AdminPageController extends BaseController {
                 model.addAttribute("pages", data.get("totalPages"));
             }
         } catch (Exception e) {
+            log.warn("加载用户列表失败: {}", e.getMessage());
             model.addAttribute("userList", new ArrayList<>());
         }
         model.addAttribute("keyword", keyword);
@@ -508,6 +517,7 @@ public class AdminPageController extends BaseController {
                 Map<String, Object> result = parseJson(resp);
                 model.addAttribute("user", result.get("data"));
             } catch (Exception e) {
+                log.warn("加载用户详情失败, id={}: {}", id, e.getMessage());
                 model.addAttribute("user", new HashMap<>());
             }
         }
@@ -541,7 +551,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             Map<String, Object> data = (Map<String, Object>) result.get("data");
             if (data != null) totalOrders = ((Number) data.get("total")).longValue();
-        } catch (Exception e) {}
+        } catch (Exception e) { log.warn("获取订单总数失败: {}", e.getMessage()); }
         String[] statuses = {"待支付", "已支付", "已发货", "已完成", "已取消"};
         long[] counts = new long[5];
         for (int i = 0; i < statuses.length; i++) {
@@ -551,7 +561,7 @@ public class AdminPageController extends BaseController {
                 Map<String, Object> result = parseJson(resp);
                 Map<String, Object> data = (Map<String, Object>) result.get("data");
                 counts[i] = data != null ? ((Number) data.get("total")).longValue() : 0;
-            } catch (Exception e) {}
+            } catch (Exception e) { log.warn("获取订单状态[{}]数量失败: {}", statuses[i], e.getMessage()); }
         }
         pendingCount = counts[0]; paidCount = counts[1]; shippingCount = counts[2];
         completedCount = counts[3]; cancelledCount = counts[4];
@@ -578,6 +588,7 @@ public class AdminPageController extends BaseController {
                 model.addAttribute("pageInfo", pageInfo);
             }
         } catch (Exception e) {
+            log.warn("加载订单列表失败: {}", e.getMessage());
             model.addAttribute("orderList", new ArrayList<>());
         }
         model.addAttribute("selectedStatus", status);
@@ -607,6 +618,7 @@ public class AdminPageController extends BaseController {
                 Map<String, Object> result = parseJson(resp);
                 model.addAttribute("order", result.get("data"));
             } catch (Exception e) {
+                log.warn("加载订单详情失败, id={}: {}", id, e.getMessage());
                 model.addAttribute("order", new HashMap<>());
             }
         }
@@ -644,6 +656,7 @@ public class AdminPageController extends BaseController {
                 if (data.get("total") != null) totalCoupons = ((Number) data.get("total")).longValue();
             }
         } catch (Exception e) {
+            log.warn("加载优惠券列表失败: {}", e.getMessage());
             model.addAttribute("couponList", new ArrayList<>());
         }
         model.addAttribute("totalCoupons", totalCoupons);
@@ -685,6 +698,7 @@ public class AdminPageController extends BaseController {
                 model.addAttribute("pageSize", data.get("pageSize"));
             }
         } catch (Exception e) {
+            log.warn("加载评价列表失败: {}", e.getMessage());
             model.addAttribute("reviewList", new ArrayList<>());
         }
         model.addAttribute("keyword", keyword != null ? keyword : "");
@@ -721,6 +735,7 @@ public class AdminPageController extends BaseController {
                 model.addAttribute("pageSize", data.get("pageSize"));
             }
         } catch (Exception e) {
+            log.warn("加载消息列表失败: {}", e.getMessage());
             model.addAttribute("messageList", new ArrayList<>());
         }
         model.addAttribute("unreadCount", 0);
@@ -757,6 +772,7 @@ public class AdminPageController extends BaseController {
                 model.addAttribute("pageSize", data.get("pageSize"));
             }
         } catch (Exception e) {
+            log.warn("加载公告列表失败: {}", e.getMessage());
             model.addAttribute("announcementList", new ArrayList<>());
         }
         return "admin/announcement/list";
@@ -787,6 +803,7 @@ public class AdminPageController extends BaseController {
             model.addAttribute("pageNum", logResult.getPageNum());
             model.addAttribute("pageSize", logResult.getPageSize());
         } catch (Exception e) {
+            log.warn("加载操作日志列表失败: {}", e.getMessage());
             model.addAttribute("logList", new ArrayList<>());
         }
         model.addAttribute("keyword", keyword);
@@ -809,6 +826,7 @@ public class AdminPageController extends BaseController {
             Map<String, Object> result = parseJson(resp);
             model.addAttribute("categoryList", result.get("data"));
         } catch (Exception e) {
+            log.warn("加载分类列表失败: {}", e.getMessage());
             model.addAttribute("categoryList", new ArrayList<>());
         }
         return "admin/category/list";

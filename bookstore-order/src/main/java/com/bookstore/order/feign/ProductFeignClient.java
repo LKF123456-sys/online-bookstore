@@ -9,6 +9,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 // 导入Spring MVC的请求映射注解
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 /**
  * 商品服务Feign客户端接口
  * 通过Spring Cloud OpenFeign实现远程调用商品服务（bookstore-product）的API。
@@ -38,4 +40,13 @@ public interface ProductFeignClient {  // Feign客户端接口，不需要实现
      */
     @PutMapping("/api/product/{id}/stock")  // 映射为PUT请求，URL为 /api/product/{id}/stock
     void updateStock(@PathVariable("id") String id, @RequestParam("quantity") Integer quantity);  // @RequestParam将参数拼接到URL查询字符串中
+
+    /**
+     * 批量获取商品信息（解决 N+1 调用问题）
+     * 远程调用商品服务的 GET /api/product/batch 接口
+     * @param ids 商品ID列表，逗号分隔
+     * @return 商品信息列表
+     */
+    @GetMapping("/api/product/batch")
+    Result<List<ProductVO>> batchGetProducts(@RequestParam("ids") String ids);
 }

@@ -81,6 +81,19 @@ public class ProductApiController {  // 商品API控制器类
     }
 
     /**
+     * 批量获取商品信息（解决 N+1 调用问题）
+     * 接受逗号分隔的商品ID列表，一次返回所有商品的VO信息
+     * 主要用于订单服务批量查询商品，避免逐个调用导致的 N+1 性能问题
+     *
+     * @param ids 商品ID列表（通过URL参数传递，如 ?ids=1,2,3）
+     * @return 商品VO列表
+     */
+    @GetMapping("/batch")  // GET请求映射，处理 /api/product/batch 的HTTP GET请求
+    public Result<List<ProductVO>> batchGetProducts(@RequestParam("ids") List<String> ids) {  // @RequestParam从URL查询参数中获取ids列表
+        return Result.success(productService.batchGetProducts(ids));  // 调用服务层批量查询商品，包装返回
+    }
+
+    /**
      * 更新商品库存（扣减库存 + 增加销量）
      * 当用户下单时，由订单服务调用此接口扣减库存
      * 如果库存不足会抛出异常

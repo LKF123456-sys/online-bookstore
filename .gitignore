@@ -20,3 +20,19 @@ bin/
 
 ### 日志 ###
 *.log
+
+### 环境变量（含敏感信息） ###
+.env
+
+### Debug / temp files ###
+cookies.txt
+debug.log
+login.json
+log2.json
+reg.json
+sup_log.json
+product.log
+product-stderr.log
+product-stdout.log
+user.log
+compile.log

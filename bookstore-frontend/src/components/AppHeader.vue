@@ -14,6 +14,10 @@
         <router-link to="/" class="nav-link" active-class="active">首页</router-link>
         <router-link to="/products" class="nav-link" active-class="active">商品</router-link>
         <router-link to="/coupons" class="nav-link" active-class="active">优惠券</router-link>
+        <router-link v-if="authStore.isLoggedIn" to="/chat" class="nav-link" active-class="active">
+          <n-icon size="14"><ChatbubbleEllipsesOutline /></n-icon>
+          智能助手
+        </router-link>
         <a v-if="isAdmin" :href="adminUrl" target="_blank" class="nav-link admin-link">
           <n-icon size="14"><SettingsOutline /></n-icon>
           管理后台
@@ -82,6 +86,7 @@ import {
   MailOutline,
   PersonCircleOutline,
   SettingsOutline,
+  ChatbubbleEllipsesOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '@/stores/auth'
 import { useCartStore } from '@/stores/cart'

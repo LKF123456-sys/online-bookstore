@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;  // 导入表名注解
 import lombok.Data;  // 导入Lombok的@Data注解
 
 import java.math.BigDecimal;  // 导入BigDecimal类，用于精确表示价格等金额
+import java.time.LocalDateTime;  // 导入Java8日期时间类
 
 /**
  * 商品实体类
@@ -31,6 +32,12 @@ public class Product {  // 商品实体类
     @TableField("is_recommend")  // 字段映射注解，指定Java字段对应的数据库列名为"is_recommend"
     private Integer isRecommend;  // 是否推荐：0-不推荐 1-推荐，用于首页推荐展示
     private Integer status;  // 商品状态：0-下架 1-上架
+
+    @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
+    private LocalDateTime createTime;  // 创建时间，插入时自动填充
+
+    @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT_UPDATE)
+    private LocalDateTime updateTime;  // 更新时间，插入和更新时自动填充
 
     // ========== 前端兼容方法 ==========
     // 以下方法是为了兼容前端传来的字段名与数据库字段名不一致的情况

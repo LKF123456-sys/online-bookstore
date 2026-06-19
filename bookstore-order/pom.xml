@@ -107,6 +107,28 @@
             <artifactId>apm-toolkit-trace</artifactId>
             <version>${skywalking-toolkit.version}</version>
         </dependency>
+
+        <!-- ==================== 集成测试依赖 ==================== -->
+        <!-- Testcontainers：在集成测试中启动真实的 Docker 容器（MySQL、Redis 等）
+             相比 Mock/H2 内存数据库，能发现真实的 SQL 兼容性和连接问题 -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.20.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mysql</artifactId>
+            <version>1.20.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>1.20.4</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <!-- 构建配置 -->

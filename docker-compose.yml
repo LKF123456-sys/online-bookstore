@@ -10,7 +10,7 @@ services:
     image: mysql:8.0
     container_name: bookstore-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
       MYSQL_DATABASE: bookstore
       MYSQL_CHARACTER_SET_SERVER: utf8mb4
       MYSQL_COLLATION_SERVER: utf8mb4_unicode_ci
@@ -20,7 +20,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -56,8 +56,8 @@ services:
       MYSQL_SERVICE_HOST: mysql
       MYSQL_SERVICE_PORT: 3306
       MYSQL_SERVICE_DB_NAME: nacos_config
-      MYSQL_SERVICE_USER: root
-      MYSQL_SERVICE_PASSWORD: root
+      MYSQL_SERVICE_USER: ${DB_USERNAME}
+      MYSQL_SERVICE_PASSWORD: ${DB_PASSWORD}
       MYSQL_SERVICE_DB_PARAM: "characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
       JVM_XMS: 256m
       JVM_XMX: 512m
@@ -135,14 +135,15 @@ services:
     environment:
       SERVER_PORT: 8080
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
       JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
       SW_AGENT_NAME: bookstore-gateway
+      JWT_SECRET: ${JWT_SECRET}
       SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
       SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
@@ -177,14 +178,15 @@ services:
     environment:
       SERVER_PORT: 8081
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
       JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
       SW_AGENT_NAME: bookstore-user
+      JWT_SECRET: ${JWT_SECRET}
       SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
       SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
@@ -219,8 +221,8 @@ services:
     environment:
       SERVER_PORT: 8082
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -261,8 +263,8 @@ services:
     environment:
       SERVER_PORT: 8083
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -303,8 +305,8 @@ services:
     environment:
       SERVER_PORT: 8085
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -345,14 +347,15 @@ services:
     environment:
       SERVER_PORT: 8086
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
       SPRING_PROFILES_ACTIVE: prod
       JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
       SW_AGENT_NAME: bookstore-admin
+      JWT_SECRET: ${JWT_SECRET}
       SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
       SW_AGENT_LOG_REPORT_ACTIVE: "true"
     depends_on:
@@ -387,8 +390,8 @@ services:
     environment:
       SERVER_PORT: 8087
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: root
-      DB_PASSWORD: root
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -408,6 +411,51 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8087/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    networks:
+      - bookstore-net
+    restart: unless-stopped
+
+  # AI 智能体服务 (端口 8089)
+  agent:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.service
+      args:
+        MODULE: bookstore-agent
+    container_name: bookstore-agent
+    ports:
+      - "8089:8089"
+    environment:
+      SERVER_PORT: 8089
+      DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      NACOS_SERVER_ADDR: nacos:8848
+      SPRING_PROFILES_ACTIVE: prod
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      JAVA_OPTS: "-javaagent:/skywalking/agent/skywalking-agent.jar -Xms256m -Xmx512m -XX:+UseG1GC"
+      SW_AGENT_NAME: bookstore-agent
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: skywalking-oap:11800
+      SW_AGENT_LOG_REPORT_ACTIVE: "true"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      skywalking-oap:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8089/actuator/health"]
       interval: 30s
       timeout: 5s
       retries: 5
