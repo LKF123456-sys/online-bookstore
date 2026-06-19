@@ -53,6 +53,18 @@ spring:
             logger-level: BASIC
 
 # ============================================================
+# Spring AI OpenAI 自动配置（Chat + Embedding 模型）
+# Embedding 模型用于 RAG 向量检索，Chat 模型由 AiModelConfig 手动管理
+# ============================================================
+spring.ai:
+  openai:
+    api-key: ${OPENAI_API_KEY:sk-placeholder}
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+    embedding:
+      options:
+        model: ${EMBEDDING_MODEL:text-embedding-3-small}  # 1536维，成本低，效果好
+
+# ============================================================
 # AI 模型配置 — 通过 agent.model.provider 切换底层 LLM
 # ============================================================
 agent:
@@ -74,6 +86,26 @@ agent:
   memory:
     max-history: 20          # Redis 短期记忆窗口大小（消息数）
     session-ttl: 3600        # 会话空闲过期时间（秒）
+
+# ============================================================
+# RAG (检索增强生成) 配置
+# ============================================================
+agent.rag:
+  enabled: ${RAG_ENABLED:true}
+  embedding-model: ${EMBEDDING_MODEL:text-embedding-3-small}  # OpenAI Embedding 模型
+  chunk-size: 800             # 文档分块大小（token数）
+  chunk-overlap: 200          # 分块重叠（保持上下文连续性）
+  top-k: 5                    # 语义搜索返回结果数
+  knowledge-dir: classpath:knowledge/  # 知识文档目录
+
+# ============================================================
+# MCP (Model Context Protocol) 配置
+# ============================================================
+agent.mcp:
+  enabled: ${MCP_ENABLED:true}
+  server-name: bookstore-agent
+  protocol-version: "2024-11-05"
+  sse-endpoint: /api/agent/mcp/sse
 
 # MyBatis-Plus
 mybatis-plus:
