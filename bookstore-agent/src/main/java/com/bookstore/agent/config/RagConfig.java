@@ -38,6 +38,6 @@ public class RagConfig {
     @Bean
     public VectorStore vectorStore(EmbeddingModel embeddingModel) {
         log.info("初始化 SimpleVectorStore（内存向量存储）");
-        return new SimpleVectorStore(embeddingModel);
+        return SimpleVectorStore.builder(embeddingModel).build();
     }
 }

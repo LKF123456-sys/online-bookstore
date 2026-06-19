@@ -2,6 +2,10 @@
 server:
   port: 8082  # 服务端口号，商品服务运行在8082端口
 
+# ==================== JWT配置 ====================
+jwt:
+  secret: ${JWT_SECRET:bookstore-product-secret-key-2024-default}
+
 # ==================== Spring核心配置 ====================
 spring:
   config:

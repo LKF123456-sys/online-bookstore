@@ -35,6 +35,8 @@ public class AiModelConfig {
     private OpenAiProperties openai = new OpenAiProperties();
     private OllamaProperties ollama = new OllamaProperties();
     private DashScopeProperties dashscope = new DashScopeProperties();
+    private DeepSeekProperties deepseek = new DeepSeekProperties();
+    private DoubaoProperties doubao = new DoubaoProperties();
 
     @Data
     public static class OpenAiProperties {
@@ -58,6 +60,22 @@ public class AiModelConfig {
         private double temperature = 0.7;
     }
 
+    @Data
+    public static class DeepSeekProperties {
+        private String apiKey = "sk-placeholder";
+        private String baseUrl = "https://api.deepseek.com";
+        private String model = "deepseek-chat";
+        private double temperature = 0.7;
+    }
+
+    @Data
+    public static class DoubaoProperties {
+        private String apiKey = "sk-placeholder";
+        private String baseUrl = "https://ark.cn-beijing.volces.com/api/v3";
+        private String model = "doubao-pro-32k";
+        private double temperature = 0.7;
+    }
+
     /**
      * OpenAI ChatModel — 当 provider=openai 时创建
      * 支持 GPT-4o、GPT-4o-mini 等 OpenAI 模型
@@ -67,12 +85,18 @@ public class AiModelConfig {
     @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
             name = "agent.model.provider", havingValue = "openai", matchIfMissing = true)
     public ChatModel openAiChatModel() {
-        OpenAiApi openAiApi = new OpenAiApi(openai.getBaseUrl(), openai.getApiKey());
-        OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .withModel(openai.getModel())
-                .withTemperature(openai.getTemperature())
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .baseUrl(openai.getBaseUrl())
+                .apiKey(openai.getApiKey())
                 .build();
-        return new OpenAiChatModel(openAiApi, options);
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+                .model(openai.getModel())
+                .temperature(openai.getTemperature())
+                .build();
+        return OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(options)
+                .build();
     }
 
     /**
@@ -84,11 +108,17 @@ public class AiModelConfig {
     @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
             name = "agent.model.provider", havingValue = "ollama")
     public ChatModel ollamaChatModel() {
-        OllamaApi ollamaApi = new OllamaApi(ollama.getBaseUrl());
-        OllamaOptions options = OllamaOptions.create()
-                .withModel(ollama.getModel())
-                .withTemperature(ollama.getTemperature());
-        return new OllamaChatModel(ollamaApi, options);
+        OllamaApi ollamaApi = OllamaApi.builder()
+                .baseUrl(ollama.getBaseUrl())
+                .build();
+        OllamaOptions options = OllamaOptions.builder()
+                .model(ollama.getModel())
+                .temperature(ollama.getTemperature())
+                .build();
+        return OllamaChatModel.builder()
+                .ollamaApi(ollamaApi)
+                .defaultOptions(options)
+                .build();
     }
 
     /**
@@ -103,11 +133,65 @@ public class AiModelConfig {
     public ChatModel dashScopeChatModel() {
         // DashScope 兼容 OpenAI 协议，使用 OpenAiApi 指向 DashScope 端点
         String dashScopeBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
-        OpenAiApi openAiApi = new OpenAiApi(dashScopeBaseUrl, dashscope.getApiKey());
-        OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .withModel(dashscope.getModel())
-                .withTemperature(dashscope.getTemperature())
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .baseUrl(dashScopeBaseUrl)
+                .apiKey(dashscope.getApiKey())
                 .build();
-        return new OpenAiChatModel(openAiApi, options);
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+                .model(dashscope.getModel())
+                .temperature(dashscope.getTemperature())
+                .build();
+        return OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(options)
+                .build();
+    }
+
+    /**
+     * DeepSeek ChatModel — 当 provider=deepseek 时创建
+     * DeepSeek 通用大模型，兼容 OpenAI 协议
+     * 支持 deepseek-chat（通用对话）和 deepseek-coder（代码生成）
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+            name = "agent.model.provider", havingValue = "deepseek")
+    public ChatModel deepSeekChatModel() {
+        // DeepSeek 兼容 OpenAI 协议
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .baseUrl(deepseek.getBaseUrl())
+                .apiKey(deepseek.getApiKey())
+                .build();
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+                .model(deepseek.getModel())
+                .temperature(deepseek.getTemperature())
+                .build();
+        return OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(options)
+                .build();
+    }
+
+    /**
+     * 豆包 ChatModel — 当 provider=doubao 时创建
+     * 火山引擎豆包大模型，兼容 OpenAI 协议
+     * 支持 doubao-pro-32k / doubao-lite-32k 等模型
+     */
+    @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+            name = "agent.model.provider", havingValue = "doubao")
+    public ChatModel doubaoChatModel() {
+        // 豆包兼容 OpenAI 协议
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .baseUrl(doubao.getBaseUrl())
+                .apiKey(doubao.getApiKey())
+                .build();
+        OpenAiChatOptions options = OpenAiChatOptions.builder()
+                .model(doubao.getModel())
+                .temperature(doubao.getTemperature())
+                .build();
+        return OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(options)
+                .build();
     }
 }

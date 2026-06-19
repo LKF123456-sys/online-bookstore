@@ -6,6 +6,10 @@
 server:
   port: 8087  # 服务端口号，消息服务监听8087端口
 
+# ==================== JWT配置 ====================
+jwt:
+  secret: ${JWT_SECRET:bookstore-message-secret-key-2024-default}
+
 # ========== Spring主配置 ==========
 spring:
   config:

@@ -39,8 +39,7 @@ public class FeignExceptionHandler {
     @ExceptionHandler(CallNotPermittedException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     public Result<Void> handleCircuitBreakerOpen(CallNotPermittedException e) {
-        log.warn("【熔断器开启】下游服务暂不可用: circuitBreaker={}, message={}",
-                e.getCircuitBreakerName(), e.getMessage());
+        log.warn("【熔断器开启】下游服务暂不可用: message={}", e.getMessage());
         return Result.error(503, "服务暂时繁忙，请稍后重试");
     }
 

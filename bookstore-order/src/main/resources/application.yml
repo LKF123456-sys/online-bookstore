@@ -110,6 +110,11 @@ logging:
     com.bookstore: ${LOG_LEVEL:INFO}  # 项目代码的日志级别，默认INFO（可通过环境变量调整）
     org.springframework: WARN
 
+# ==================== JWT配置 ====================
+jwt:
+  secret: ${JWT_SECRET:bookstore-order-secret-key-2024-default}
+  expiration: ${JWT_EXPIRATION:86400000}
+
 # ==================== SpringDoc OpenAPI 配置 ====================
 # 启用 API 文档生成功能，供 Swagger UI 加载展示
 springdoc:

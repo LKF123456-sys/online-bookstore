@@ -42,6 +42,7 @@ import org.apache.skywalking.apm.toolkit.trace.Tag;
 import org.apache.skywalking.apm.toolkit.trace.Tags;
 // 导入Spring的属性拷贝工具，用于对象之间的属性复制
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 // 导入Spring的Service注解，标记为业务层组件
 import org.springframework.stereotype.Service;
 // 导入Spring的事务注解，用于管理数据库事务
@@ -85,10 +86,11 @@ public class OrderService implements IOrderService {
     private final OrderItemMapper orderItemMapper;
     private final ProductFeignClient productFeignClient;
     private final SnowflakeIdGenerator snowflakeIdGenerator;
-    private final OrderMessageProducer orderMessageProducer;  // 订单消息生产者，用于发送异步消息
     private final StringRedisTemplate stringRedisTemplate;    // Redis模板，用于幂等性校验
     private final CompensationRecordMapper compensationRecordMapper;  // 补偿记录Mapper
     private final OrderConfig orderConfig;  // 动态配置（可通过 Nacos 运行时调整）
+    @Autowired(required = false)  // RabbitMQ 不可用时允许为 null
+    private OrderMessageProducer orderMessageProducer;  // 订单消息生产者，用于发送异步消息
 
     // ==================== 自定义监控指标 ====================
     private final Counter ordersCreatedCounter;     // 订单创建计数器
@@ -104,7 +106,7 @@ public class OrderService implements IOrderService {
      */
     public OrderService(OrdersMapper ordersMapper, OrderItemMapper orderItemMapper,
                         ProductFeignClient productFeignClient, SnowflakeIdGenerator snowflakeIdGenerator,
-                        OrderMessageProducer orderMessageProducer, MeterRegistry meterRegistry,
+                        MeterRegistry meterRegistry,
                         StringRedisTemplate stringRedisTemplate,
                         CompensationRecordMapper compensationRecordMapper,
                         OrderConfig orderConfig) {
@@ -112,7 +114,6 @@ public class OrderService implements IOrderService {
         this.orderItemMapper = orderItemMapper;
         this.productFeignClient = productFeignClient;
         this.snowflakeIdGenerator = snowflakeIdGenerator;
-        this.orderMessageProducer = orderMessageProducer;
         this.stringRedisTemplate = stringRedisTemplate;
         this.compensationRecordMapper = compensationRecordMapper;
         this.orderConfig = orderConfig;
@@ -382,7 +383,9 @@ public class OrderService implements IOrderService {
         ordersPaidCounter.increment();  // 订单支付计数 +1
 
         // 发送订单支付成功的异步消息到RabbitMQ，触发下游处理（通知、积分等）
-        orderMessageProducer.sendOrderPaidMessage(orderId, userId);
+        if (orderMessageProducer != null) {
+            orderMessageProducer.sendOrderPaidMessage(orderId, userId);
+        }
     }
 
     /**
@@ -446,7 +449,9 @@ public class OrderService implements IOrderService {
         ordersCancelledCounter.increment();  // 订单取消计数 +1
 
         // 发送订单取消的异步消息到RabbitMQ，由消费者异步处理库存恢复等后续操作
-        orderMessageProducer.sendOrderCancelledMessage(orderId, userId);
+        if (orderMessageProducer != null) {
+            orderMessageProducer.sendOrderCancelledMessage(orderId, userId);
+        }
     }
 
     /**

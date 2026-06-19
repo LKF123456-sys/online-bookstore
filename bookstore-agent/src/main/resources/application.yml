@@ -2,6 +2,13 @@ server:
   port: 8089  # AI 智能体服务端口
 
 spring:
+  main:
+    allow-bean-definition-overriding: true  # 允许覆盖自动配置的 Bean（自定义 AiModelConfig 覆盖 OpenAiChatAutoConfiguration）
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaChatAutoConfiguration
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaEmbeddingAutoConfiguration
   config:
     import: "optional:nacos:bookstore-agent.yml"  # Nacos 远程配置
   application:
@@ -69,7 +76,7 @@ spring.ai:
 # ============================================================
 agent:
   model:
-    provider: ${AI_PROVIDER:openai}  # openai / ollama / dashscope
+    provider: ${AI_PROVIDER:doubao}  # openai / ollama / dashscope / deepseek / doubao
     openai:
       api-key: ${OPENAI_API_KEY:sk-placeholder}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
@@ -82,6 +89,16 @@ agent:
     dashscope:
       api-key: ${DASHSCOPE_API_KEY:sk-placeholder}
       model: ${DASHSCOPE_MODEL:qwen-plus}
+      temperature: ${AI_TEMPERATURE:0.7}
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY:sk-placeholder}
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      model: ${DEEPSEEK_MODEL:deepseek-chat}
+      temperature: ${AI_TEMPERATURE:0.7}
+    doubao:
+      api-key: ${DOUBAO_API_KEY:sk-placeholder}
+      base-url: ${DOUBAO_BASE_URL:https://ark.cn-beijing.volces.com/api/v3}
+      model: ${DOUBAO_MODEL:doubao-pro-32k}
       temperature: ${AI_TEMPERATURE:0.7}
   memory:
     max-history: 20          # Redis 短期记忆窗口大小（消息数）
@@ -106,6 +123,11 @@ agent.mcp:
   server-name: bookstore-agent
   protocol-version: "2024-11-05"
   sse-endpoint: /api/agent/mcp/sse
+
+# ==================== JWT配置 ====================
+jwt:
+  secret: ${JWT_SECRET:bookstore-agent-secret-key-2024-default}
+  expiration: ${JWT_EXPIRATION:86400000}
 
 # MyBatis-Plus
 mybatis-plus:

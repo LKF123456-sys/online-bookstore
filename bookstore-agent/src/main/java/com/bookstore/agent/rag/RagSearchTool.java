@@ -10,7 +10,6 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * RAG 语义搜索工具 — 将向量检索封装为 @Tool，供 Agent 调用
@@ -46,7 +45,10 @@ public class RagSearchTool {
         try {
             // 执行向量相似度搜索
             List<Document> results = vectorStore.similaritySearch(
-                    SearchRequest.query(query).withTopK(topK > 0 ? topK : 5)
+                    SearchRequest.builder()
+                            .query(query)
+                            .topK(topK > 0 ? topK : 5)
+                            .build()
             );
 
             if (results.isEmpty()) {
@@ -64,7 +66,7 @@ public class RagSearchTool {
                         : 0.0;
 
                 sb.append(String.format("%d. [相关度: %.0f%%]\n", i + 1, score * 100));
-                sb.append(doc.getContent()).append("\n\n");
+                sb.append(doc.getText()).append("\n\n");
             }
 
             return sb.toString();
@@ -85,7 +87,10 @@ public class RagSearchTool {
 
         try {
             List<Document> results = vectorStore.similaritySearch(
-                    SearchRequest.query(query).withTopK(3)
+                    SearchRequest.builder()
+                            .query(query)
+                            .topK(3)
+                            .build()
             );
 
             if (results.isEmpty()) {
@@ -96,7 +101,7 @@ public class RagSearchTool {
             for (Document doc : results) {
                 String source = (String) doc.getMetadata().getOrDefault("source", "知识库");
                 sb.append("[").append(source).append("]\n");
-                sb.append(doc.getContent()).append("\n\n");
+                sb.append(doc.getText()).append("\n\n");
             }
 
             return sb.toString();

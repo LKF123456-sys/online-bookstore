@@ -125,6 +125,14 @@ spring:
           filters:
             - StripPrefix=0  # 不去掉路径前缀
 
+        # 前端 REST API 路由 - Vue 前端使用的复数形式 API，由 bookstore-admin 统一提供
+        - id: bookstore-vue-api
+          uri: lb://bookstore-admin
+          predicates:
+            - Path=/api/products/**, /api/orders/**, /api/reviews/**, /api/coupons/**
+          filters:
+            - StripPrefix=0
+
         # 管理服务 - 静态资源路由 - 处理后台管理页面的图片、CSS、JS等静态文件
         - id: bookstore-admin-static  # 路由的唯一标识
           uri: lb://bookstore-admin  # 目标服务地址，静态资源也由管理服务提供
@@ -158,6 +166,5 @@ management:
 
 # --- 日志配置 ---
 logging:
-  config: classpath:logback-spring.xml
   level:
     org.springframework.cloud.gateway: DEBUG  # 将Spring Cloud Gateway的日志级别设为DEBUG，方便调试路由转发逻辑

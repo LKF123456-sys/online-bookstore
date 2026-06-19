@@ -11,6 +11,8 @@ import org.springframework.cloud.openfeign.FallbackFactory;
 // 导入Spring的Component注解
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 /**
  * 商品服务Feign降级工厂
  * 当商品服务不可用（网络异常、服务宕机、超时等）时，会执行这里的降级逻辑。
@@ -56,6 +58,15 @@ public class ProductFeignFallbackFactory implements FallbackFactory<ProductFeign
             public void updateStock(String id, Integer quantity) {  // 降级方法：更新库存
                 log.error("更新商品库存失败: {}, 数量: {}", id, quantity);  // 记录错误日志，包含商品ID和数量
                 throw new RuntimeException("商品服务暂时不可用，请稍后重试");  // 抛出运行时异常，提示用户稍后重试
+            }
+
+            /**
+             * 批量获取商品信息的降级实现
+             */
+            @Override
+            public Result<List<ProductVO>> batchGetProducts(String ids) {
+                log.warn("批量获取商品信息降级处理: ids={}, 原因: {}", ids, cause.getMessage());
+                return Result.error(503, "商品服务暂时不可用");
             }
         };
     }

@@ -41,8 +41,9 @@ public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter
             "/api/auth/login", "/api/auth/register", // 登录接口和注册接口，未登录用户必须可以访问
             "/api/product/list", "/api/product/recommend", "/api/product/hot", // 商品列表、推荐商品、热门商品等公开浏览接口
             "/api/product/detail", "/api/category/list", "/api/announcement/active", // 商品详情、分类列表、活动公告等公开查询接口
-            "/api/search", "/api/coupon/list", // 搜索接口和优惠券列表接口，允许匿名访问
-            "/api/review/product/", // 商品评论查询接口，任何人可以查看评论
+            "/api/products", "/api/products/search", "/api/products/categories", "/api/products/recommend", "/api/products/hot", // 复数路径公开商品浏览接口
+            "/api/search", "/api/coupon/list", "/api/coupons", // 搜索接口和优惠券列表接口，允许匿名访问
+            "/api/review/product/", "/api/reviews/product/", // 商品评论查询接口，任何人可以查看评论
             "/actuator" // Spring Boot健康检查端点，用于运维监控
     );
 
@@ -74,6 +75,34 @@ public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter
      * 根据密钥字符串生成HMAC签名密钥对象
      * @return SecretKey HMAC-SHA签名密钥，用于JWT令牌的签名验证
      */
+    /**
+     * 提取 JWT Token（优先从 Cookie 读取，兼容 Authorization header）
+     * @param request 请求对象
+     * @return JWT Token，如果不存在则返回 null
+     */
+    private String extractToken(ServerHttpRequest request) {
+        // 优先从 Cookie 读取
+        String cookieHeader = request.getHeaders().getFirst(HttpHeaders.COOKIE);
+        if (cookieHeader != null) {
+            for (String ck : cookieHeader.split(";")) {
+                String[] parts = ck.trim().split("=", 2);
+                if (parts.length == 2 && "BOOKSTORE_TOKEN".equals(parts[0])) {
+                    return parts[1];
+                }
+            }
+        }
+        // 兼容 Authorization header
+        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        }
+        return null;
+    }
+
+    /**
+     * 根据密钥字符串生成HMAC签名密钥对象
+     * @return SecretKey HMAC-SHA签名密钥，用于JWT令牌的签名验证
+     */
     private SecretKey getSigningKey() { // 私有方法，将字符串密钥转换为JJWT所需的SecretKey对象
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8)); // 将密钥字符串转为UTF-8字节数组，生成HMAC-SHA密钥
     }
@@ -95,23 +124,7 @@ public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter
         }
 
         // 2. 提取 JWT Token（优先从 Cookie 读取，兼容 Authorization header）
-        String token = null;
-        String cookieHeader = request.getHeaders().getFirst(HttpHeaders.COOKIE);
-        if (cookieHeader != null) {
-            for (String ck : cookieHeader.split(";")) {
-                String[] parts = ck.trim().split("=", 2);
-                if (parts.length == 2 && "BOOKSTORE_TOKEN".equals(parts[0])) {
-                    token = parts[1];
-                    break;
-                }
-            }
-        }
-        if (token == null) {
-            String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                token = authHeader.substring(7);
-            }
-        }
+        final String token = extractToken(request);
         if (token == null) {
             return unauthorized(exchange, "Missing or invalid Authorization header");
         }

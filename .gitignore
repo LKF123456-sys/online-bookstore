@@ -36,3 +36,7 @@ product-stderr.log
 product-stdout.log
 user.log
 compile.log
+
+### RabbitMQ runtime ###
+.rabbitmq/
+advanced.config
