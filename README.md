@@ -11,6 +11,8 @@ BookVerse 是一个功能完整的在线图书销售平台，采用 Spring Cloud
 - **前后端分离**：Vue 3 + TypeScript 构建用户前台和管理后台，Naive UI 组件库
 - **微服务架构**：9 个独立服务模块（含 AI 智能体服务），松耦合高内聚
 - **AI 多智能体**：Spring AI 集成，4 Agent 协作架构（客服/推荐/评价/编排），Tool Calling + SSE 流式对话
+- **RAG 检索增强**：VectorStore 语义搜索 + 领域知识库，关键词搜索与意图理解双通道
+- **MCP 协议服务**：手写 JSON-RPC 2.0 over SSE 实现，10 个工具暴露给 Claude Desktop 等外部客户端
 - **多模型切换**：OpenAI / Ollama / DashScope 三种 LLM 通过配置一键切换
 - **安全认证**：JJWT 签名验证 + RBAC 角色鉴权，网关统一拦截
 - **Token 黑名单**：基于 Redis 实现 JWT 登出即失效，Gateway 实时校验
@@ -111,9 +113,11 @@ online-bookstore/
 │
 ├── bookstore-agent/                 # AI 智能体服务（端口 8089）
 │   └── src/main/java/.../agent/
-│       ├── config/                  # AiModelConfig（多模型切换）、SecurityConfig
+│       ├── config/                  # AiModelConfig（多模型切换）、RagConfig（向量存储）、SecurityConfig
 │       ├── agent/                   # 4 Agent（客服、推荐、评价、编排）
 │       ├── tools/                   # Tool Calling 工具集（@Tool 注解）
+│       ├── rag/                     # RAG 检索增强（KnowledgeBaseService、RagSearchTool）
+│       ├── mcp/                     # MCP 协议服务（JSON-RPC 2.0 over SSE）
 │       ├── feign/                   # Feign 客户端（调用现有微服务）
 │       ├── controller/              # ChatController（SSE 流式 + 同步对话）
 │       ├── service/                 # ChatMemoryService（Redis + MySQL 双层记忆）
@@ -733,6 +737,8 @@ bookstore-common（基础层）
 | bookstore-agent | `ChatMemoryServiceTest` | 6 | 对话记忆（Redis+MySQL双层存储/降级/会话管理） |
 | bookstore-agent | `ChatControllerTest` | 6 | 对话控制器（同步/SSE流式/Agent路由/历史管理） |
 | bookstore-agent | `AgentNameTest` | 3 | Agent 名称标识验证 |
+| bookstore-agent | `RagSearchToolTest` | 5 | RAG 语义搜索/知识库搜索/空结果/异常降级 |
+| bookstore-agent | `McpServerServiceTest` | 5 | MCP 协议：initialize/tools-list/tools-call/ping/错误处理 |
 
 ### 运行测试
 
@@ -774,14 +780,24 @@ mvn test -pl bookstore-agent
                                     └─────────┬──────────┘
                            ┌──────────┬───────┴──────┬──────────┐
                     CustomerService  Product  ReviewAnalysis   通用对话
-                       Agent        Recommend    Agent
+                       Agent       Recommend    Agent
                            │          │            │
-                    ┌──────┴───┐ ┌────┴────┐ ┌────┴────┐
-                    OrderTools │ProductTools│ │ReviewTools│
-                           │          │            │
-                    ┌──────┴───┐ ┌────┴────┐ ┌────┴────┐
-                    bookstore-  bookstore-  bookstore-
-                      order     product    promotion
+                    ┌──────┴───┐ ┌────┴─────┐ ┌────┴────┐
+                    OrderTools │ProductTools │ │ReviewTools│
+                           │   │RagSearchTool│        │
+                    ┌──────┴───┐ └──┬────┴──┐   ┌────┴────┐
+                    bookstore-  VectorStore  │   bookstore-
+                      order      (语义检索)  │    promotion
+                                ┌──┴──┐     │
+                         KnowledgeBaseService
+                         (商品描述 + 领域知识)
+
+                    ┌──────────────────────────────────┐
+                    │         MCP Server (SSE)          │
+                    │  GET  /api/agent/mcp/sse          │
+                    │  POST /api/agent/mcp/message      │
+                    │  10 个工具暴露给 Claude Desktop    │
+                    └──────────────────────────────────┘
 ```
 
 ### Agent 列表
@@ -789,11 +805,61 @@ mvn test -pl bookstore-agent
 | Agent | 职责 | Tools | 触发意图 |
 |-------|------|-------|---------|
 | **CustomerServiceAgent** | 订单查询、取消、状态跟踪 | `queryOrderDetail`, `queryOrderList`, `cancelOrder` | "我的订单"、"取消订单" |
-| **ProductRecommendAgent** | 图书搜索、个性化推荐 | `searchProducts`, `getProductDetail`, `getRecommendProducts`, `getHotProducts` | "推荐好书"、"找一本书" |
+| **ProductRecommendAgent** | 图书搜索、语义推荐、领域知识 | `searchProducts`, `semanticSearchBooks`, `searchKnowledge`, `getProductDetail`, `getRecommendProducts`, `getHotProducts` | "推荐好书"、"适合睡前看的书" |
 | **ReviewAnalysisAgent** | 评价情感分析、口碑摘要 | `getProductReviews` | "这本书评价怎么样" |
 | **OrchestratorAgent** | 意图分类 + 路由分发 | — | 所有用户消息的入口 |
 
-### API 端点
+### RAG 检索增强生成
+
+| 组件 | 说明 |
+|------|------|
+| **EmbeddingModel** | OpenAI `text-embedding-3-small`（1536 维，自动配置） |
+| **VectorStore** | SimpleVectorStore（内存，可替换为 Redis/PgVector/Milvus） |
+| **KnowledgeBaseService** | 启动加载知识文档 + 商品数据，每 10 分钟增量同步 |
+| **RagSearchTool** | `@Tool semanticSearchBooks()` + `@Tool searchKnowledge()` |
+| **知识文档** | `resources/knowledge/BookCategoryKnowledge.md`（图书分类 + 阅读建议） |
+
+RAG 流程：用户问题 → Embedding 向量化 → VectorStore 余弦相似度检索 → Top-K 文档注入 Prompt → LLM 生成基于上下文的回复。与 ProductTools 的关键词搜索互补：精确匹配书名/作者用关键词，模糊意图（如"适合睡前看的轻松读物"）用语义搜索。
+
+### MCP 协议服务
+
+MCP（Model Context Protocol）是 Anthropic 提出的 AI 工具互操作标准协议。BookVerse 手写实现了 MCP Server（JSON-RPC 2.0 over SSE），将 Agent 的全部能力暴露给外部 MCP 客户端。
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/agent/mcp/sse` | GET | SSE 长连接端点（MCP 客户端首先连接此处） |
+| `/api/agent/mcp/message` | POST | JSON-RPC 请求端点（请求通过 SSE 通道返回） |
+| `/api/agent/mcp/tools` | GET | 工具列表（REST 调试用） |
+| `/api/agent/mcp/status` | GET | Server 状态 |
+
+**已注册的 10 个 MCP 工具：**
+
+| 工具名 | 来源 | 说明 |
+|--------|------|------|
+| `search_products` | ProductTools | 关键词搜索图书 |
+| `get_product_detail` | ProductTools | 获取图书详情 |
+| `get_recommend_products` | ProductTools | 系统推荐 |
+| `get_hot_products` | ProductTools | 热销排行 |
+| `query_order_detail` | OrderTools | 查询订单详情 |
+| `query_order_list` | OrderTools | 查询订单列表 |
+| `cancel_order` | OrderTools | 取消订单 |
+| `get_product_reviews` | ReviewTools | 获取商品评价 |
+| `semantic_search_books` | RagSearchTool | RAG 语义搜索 |
+| `search_knowledge` | RagSearchTool | RAG 知识库检索 |
+
+**Claude Desktop 接入配置：**
+
+```json
+{
+  "mcpServers": {
+    "bookstore": {
+      "url": "http://localhost:8089/api/agent/mcp/sse"
+    }
+  }
+}
+```
+
+### 对话 API
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
