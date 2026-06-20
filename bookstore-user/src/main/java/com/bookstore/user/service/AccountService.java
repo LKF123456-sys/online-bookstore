@@ -13,7 +13,10 @@ import com.bookstore.common.security.JwtUtil;  // 导入JWT工具类，用于生
 import com.bookstore.common.util.PasswordUtil;  // 导入密码工具类，用于密码加密和校验
 import com.bookstore.user.mapper.AccountMapper;  // 导入用户账户Mapper接口，用于数据库操作
 import lombok.RequiredArgsConstructor;  // 导入Lombok注解，自动生成包含final字段的构造函数
-import lombok.extern.slf4j.Slf4j;  // 导入Lombok的Slf4j注解，自动生成log日志对象
+import lombok.extern.slf4j.Slf4j;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;  // 导入Lombok的Slf4j注解，自动生成log日志对象
 import org.springframework.beans.BeanUtils;  // 导入Spring的Bean工具类，用于对象属性的复制
 import org.springframework.data.redis.core.RedisTemplate;  // 导入Redis操作模板，用于操作Redis缓存（如存储Token等）
 import org.springframework.stereotype.Service;  // 导入Service注解，标记该类为Spring的服务层组件
@@ -40,7 +43,11 @@ public class AccountService {
 
     private final AccountMapper accountMapper;  // 用户账户Mapper，用于对数据库中的用户表进行CRUD操作
     private final JwtUtil jwtUtil;  // JWT工具类，用于生成和解析Token，实现无状态的用户认证
-    private final RedisTemplate<String, Object> redisTemplate;  // Redis操作模板，用于缓存数据（如Token黑名单等）
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final MeterRegistry meterRegistry;
+
+    private Counter loginCounter;
+    private Counter registerCounter;  // Redis操作模板，用于缓存数据（如Token黑名单等）
 
     /** Redis 黑名单 key 前缀，与 Gateway AuthFilter 中的定义保持一致 */
     private static final String BLACKLIST_PREFIX = "jwt:blacklist:";
@@ -54,7 +61,7 @@ public class AccountService {
      * @throws IllegalArgumentException 当用户名不存在、密码错误或账号被禁用时抛出异常
      */
     public Map<String, Object> login(LoginDTO dto) {  // 登录方法，接收登录DTO，返回包含token和用户信息的Map
-        log.info("用户登录尝试 / User login attempt, username={}", dto.getUsername());
+        loginCounter.increment();  // 登录计数 +1`n        log.info("用户登录尝试 / User login attempt, username={}", dto.getUsername());
         // 根据用户名（userid）从数据库查询用户信息
         Account account = accountMapper.selectOne(
                 new LambdaQueryWrapper<Account>().eq(Account::getUserid, dto.getUsername()));  // 构建查询条件：userid = 传入的用户名

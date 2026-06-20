@@ -39,6 +39,12 @@
             <artifactId>spring-ai-vector-store</artifactId>
         </dependency>
 
+        <!-- Spring AI Redis Vector Store（持久化向量存储，基于 RediSearch） -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-redis-store</artifactId>
+        </dependency>
+
         <!-- Spring AI Chat Model（ChatClient、ChatModel 等核心 API） -->
         <dependency>
             <groupId>org.springframework.ai</groupId>

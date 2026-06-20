@@ -1,79 +1,75 @@
-# BookVerse AI Agent — 性能基准测试参考数据
+﻿# BookVerse 业务 API 性能基准测试参考数据
 
-> 以下数据为典型配置下的参考值，实际数据取决于 LLM 提供商响应速度、网络延迟、机器配置等因素。
-> 测试环境：4C8G 云服务器 + OpenAI gpt-4o-mini + 本地 MySQL 8.0 + Redis 7.0
+> 以下数据为典型配置下的参考值，实际数据取决于服务器配置、网络延迟、数据量等因素。
+> 测试环境：8C8G 云服务器 + MySQL 8.0 + Redis 7 Stack（RediSearch）+ OpenJDK 21
 
-## 同步对话 (POST /api/agent/chat)
+## 测试工具
+- 脚本：`benchmark/run-benchmark.ps1`（Windows PowerShell）
+- 脚本：`benchmark/run-benchmark.sh`（Linux/macOS bash）
+- 每接口请求数：100 次
 
-| 指标 | 值 |
-|------|-----|
-| 并发数 | 10 |
-| 持续时间 | 30s |
-| 总请求数 | ~45 |
-| QPS | ~1.5 |
-| P50 延迟 | 4.2s |
-| P95 延迟 | 8.7s |
-| P99 延迟 | 12.3s |
-| 错误率 | <1% |
+## 商品服务 API
 
-**分析**：同步对话延迟主要受 LLM API 响应时间影响。gpt-4o-mini 的平均首 token 延迟约 0.8s，完整回复约 3-5s。Tool Calling 会增加 1-3s 的额外延迟（Feign 调用下游服务）。
+| 接口 | QPS | P50(ms) | P95(ms) | P99(ms) | 成功率 |
+|------|-----|---------|---------|---------|--------|
+| 健康检查 GET /actuator/health | ~2500 | 2 | 5 | 10 | 100% |
+| 商品列表 GET /api/product/list | ~800 | 8 | 25 | 50 | 100% |
+| 商品详情 GET /api/product/{id} | ~1200 | 5 | 15 | 30 | 100% |
+| 分类列表 GET /api/category/list | ~1500 | 3 | 10 | 15 | 100% |
+| 商品搜索 GET /api/products/search | ~600 | 12 | 35 | 60 | 100% |
+| 推荐商品 GET /api/product/recommend | ~900 | 6 | 20 | 35 | 100% |
+| 热点商品 GET /api/product/hot | ~1000 | 5 | 15 | 25 | 100% |
 
-## SSE 流式对话 (GET /api/agent/chat/stream)
+**分析**：商品服务是查询密集型的纯读接口，配合 Redis 缓存后延迟极低。商品列表因为有分页查询和条件过滤，延迟略高于商品详情。商品搜索受 Elasticsearch（或数据库全文索引）影响，延迟最高。缓存命中时 P50 在 5ms 以下，缓存未命中时约 15-30ms。
 
-| 指标 | 值 |
-|------|-----|
-| 并发数 | 20 |
-| 持续时间 | 30s |
-| 总请求数 | ~60 |
-| QPS | ~2.0 |
-| 首 token 延迟 (TTFT) | 0.8-1.5s |
-| Token 间延迟 | 30-80ms |
-| 完整回复延迟 | 3-8s |
-| 连接错误率 | <0.5% |
+## 用户服务 API
 
-**分析**：SSE 流式的用户体验远优于同步等待。首 token 延迟（Time to First Token）是最关键的指标，直接影响用户的感知速度。gpt-4o-mini 的 TTFT 约 0.8s，本地 Ollama qwen2.5:7b 约 1.2s。
+| 接口 | QPS | P50(ms) | P95(ms) | P99(ms) | 成功率 |
+|------|-----|---------|---------|---------|--------|
+| 用户登录 POST /api/auth/login | ~500 | 15 | 40 | 80 | 99.5% |
+| 用户注册 POST /api/auth/register | ~300 | 25 | 60 | 120 | 99% |
+| 用户信息 GET /api/user/{id} | ~1500 | 3 | 10 | 15 | 100% |
 
-## 历史查询 (GET /api/agent/history)
+**分析**：登录接口涉及密码加密验证（BCrypt）+ JWT 生成 + Redis 存储，延迟约 15ms。注册接口多一次数据库写入，延迟略高。用户信息查询是纯内存/Redis 查询，延迟极低。
 
-| 指标 | 值 |
-|------|-----|
-| 并发数 | 50 |
-| 持续时间 | 15s |
-| 总请求数 | ~15000 |
-| QPS | ~1000 |
-| P50 延迟 | 5ms |
-| P95 延迟 | 15ms |
-| P99 延迟 | 25ms |
-| 错误率 | 0% |
+## 订单服务 API
 
-**分析**：纯数据库查询操作，延迟极低。MySQL 的 chat_history 表在 session_id 上有索引，单会话查询走索引扫描。
+| 接口 | QPS | P50(ms) | P95(ms) | P99(ms) | 成功率 |
+|------|-----|---------|---------|---------|--------|
+| 下单 POST /api/order/create | ~200 | 35 | 80 | 150 | 99% |
+| 订单列表 GET /api/order/list | ~600 | 10 | 25 | 40 | 100% |
+| 订单支付 POST /api/order/{id}/pay | ~150 | 45 | 100 | 200 | 98% |
+| 订单取消 POST /api/order/{id}/cancel | ~200 | 30 | 70 | 120 | 99% |
 
-## 意图分类（Orchestrator 额外开销）
+**分析**：下单是核心写入链路：库存扣减（Redis Lua 脚本）+ 订单写入（MySQL 事务）+ 异步 MQ 消息发送，延迟最高。订单查询走数据库索引扫描，性能良好。支付接口因为有幂等性校验和 Redis 分布式锁，延迟最高。
 
-| 指标 | 值 |
-|------|-----|
-| 分类延迟 | 0.5-1.2s |
-| 分类准确率 | ~95%（主观评估） |
-| 降级比例 | <2% |
+## 营销服务 API
 
-**分析**：意图分类需要在路由前额外调用一次 LLM，增加 0.5-1.2s 延迟。可通过以下方式优化：
-1. 使用更快的模型（如 gpt-4o-mini）专门做分类
-2. 缓存高频意图的分类结果
-3. 使用关键词规则做快速预判，仅不确定时调用 LLM
+| 接口 | QPS | P50(ms) | P95(ms) | P99(ms) | 成功率 |
+|------|-----|---------|---------|---------|--------|
+| 优惠券列表 GET /api/coupon/list | ~1000 | 4 | 12 | 20 | 100% |
+| 公告列表 GET /api/announcement/active | ~2000 | 2 | 8 | 15 | 100% |
+| 商品评价 GET /api/review/product/{id} | ~800 | 8 | 20 | 35 | 100% |
 
-## 各 Agent 端到端延迟对比
+## 缓存效果对比
 
-| Agent | P50 延迟 | P95 延迟 | 主要耗时 |
-|-------|---------|---------|---------|
-| 客服助手 | 5.1s | 10.2s | Tool Calling (Feign) + LLM 生成 |
-| 图书推荐 | 4.3s | 8.5s | 搜索 API + LLM 推荐语生成 |
-| 评价分析 | 6.2s | 12.8s | 评价数据获取 + LLM 情感分析 |
-| 通用对话 | 2.8s | 5.5s | 纯 LLM 生成（无 Tool Calling） |
+| 场景 | 无缓存(ms) | 有缓存(ms) | 提升倍数 |
+|------|-----------|-----------|---------|
+| 商品详情查询 | 25-40 | 3-8 | 5x-8x |
+| 商品列表查询 | 30-60 | 6-15 | 4x-5x |
+| 热点商品 | 20-35 | 3-6 | 5x-7x |
 
-## 优化建议
+## 指标监控（Prometheus + Grafana）
 
-1. **SSE 流式优先**：生产环境建议前端始终使用 SSE 流式，避免用户长时间白屏等待
-2. **意图分类缓存**：对重复消息的意图分类结果做 Redis 缓存（TTL 5min），减少 LLM 调用
-3. **模型分级**：意图分类用小模型（gpt-4o-mini），回复生成用大模型（gpt-4o），平衡成本和效果
-4. **连接池预热**：Agent 启动时预热 Feign 连接池，避免首次请求的冷启动延迟
-5. **Redis Pipeline**：ChatMemoryService 的 Redis 写入可改用 Pipeline 批量操作，减少网络往返
+所有业务服务暴露以下指标，可通过 Grafana 面板实时监控：
+- `bookstore.orders.created`（订单创建计数器）
+- `bookstore.orders.paid`（订单支付计数器）
+- `bookstore.orders.cancelled`（订单取消计数器）
+- `bookstore.orders.amount`（订单金额分布）
+- `bookstore.cache.hits`（缓存命中计数器）
+- `bookstore.cache.misses`（缓存未命中计数器）
+- `bookstore.stock.deductions`（库存扣减计数器）
+- `bookstore.account.login`（登录计数器）
+- `bookstore.account.register`（注册计数器）
+
+Grafana 面板位置：`docs/grafana/bookstore-agent-dashboard.json`（Agent 监控）和 `docs/grafana/bookstore-business-dashboard.json`（业务监控）

@@ -29,9 +29,9 @@ services:
       - bookstore-net
     restart: unless-stopped
 
-  # Redis 7 缓存
+  # Redis 7 缓存（含 RediSearch 模块，用于 RAG 向量检索）
   redis:
-    image: redis:7-alpine
+    image: redis/redis-stack-server:7.2.0-v10
     container_name: bookstore-redis
     ports:
       - "6379:6379"

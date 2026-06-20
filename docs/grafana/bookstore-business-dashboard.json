@@ -1,0 +1,145 @@
+﻿{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0" },
+    { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
+  ],
+  "title": "BookVerse Business Metrics",
+  "description": "业务指标监控面板 — 订单、商品、用户核心业务指标",
+  "tags": ["bookstore", "business", "micrometer"],
+  "timezone": "Asia/Shanghai",
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "10s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "订单创建速率（每分钟）",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(bookstore_orders_created_total[1m]) * 60", "legendFormat": "创建订单" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "cpm", "min": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 2,
+      "title": "订单支付 vs 取消速率（每分钟）",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(bookstore_orders_paid_total[1m]) * 60", "legendFormat": "支付订单" },
+        { "expr": "rate(bookstore_orders_cancelled_total[1m]) * 60", "legendFormat": "取消订单" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "cpm", "min": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "取消订单" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#e24d42" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 3,
+      "title": "订单金额分布",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(bookstore_orders_amount_sum[5m]) / rate(bookstore_orders_amount_count[5m])", "legendFormat": "平均订单金额" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "currencyCNY", "min": 0, "max": 500 },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "商品缓存命中率",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 6, "y": 8 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(bookstore_cache_hits_total[1m]) / (rate(bookstore_cache_hits_total[1m]) + rate(bookstore_cache_misses_total[1m])) * 100", "legendFormat": "缓存命中率" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0, "max": 100 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 5,
+      "title": "缓存命中 vs 未命中（每分钟）",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(bookstore_cache_hits_total[1m]) * 60", "legendFormat": "缓存命中" },
+        { "expr": "rate(bookstore_cache_misses_total[1m]) * 60", "legendFormat": "缓存未命中" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "cpm", "min": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "缓存未命中" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#e24d42" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 6,
+      "title": "库存扣减速率（每分钟）",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(bookstore_stock_deductions_total[1m]) * 60", "legendFormat": "库存扣减" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "cpm", "min": 0 },
+        "overrides": []
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 7,
+      "title": "登录 vs 注册速率（每分钟）",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(bookstore_account_login_total[1m]) * 60", "legendFormat": "登录" },
+        { "expr": "rate(bookstore_account_register_total[1m]) * 60", "legendFormat": "注册" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "cpm", "min": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "注册" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#73bf69" } }] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" } }
+    },
+    {
+      "id": 8,
+      "title": "业务总览（当前值）",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 24 },
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "increase(bookstore_orders_created_total[1h])", "legendFormat": "近1小时订单" },
+        { "expr": "increase(bookstore_account_login_total[1h])", "legendFormat": "近1小时登录" }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none" },
+        "overrides": []
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto" }
+    }
+  ]
+}
