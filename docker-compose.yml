@@ -18,7 +18,8 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./sql/V5__service_account_isolation.sql:/docker-entrypoint-initdb.d/02_service_accounts.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}"]
       interval: 10s
@@ -178,8 +179,8 @@ services:
     environment:
       SERVER_PORT: 8081
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: bookstore_user
+      DB_PASSWORD: BookStore@User2024
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -221,8 +222,8 @@ services:
     environment:
       SERVER_PORT: 8082
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: bookstore_product
+      DB_PASSWORD: BookStore@Product2024
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -263,8 +264,8 @@ services:
     environment:
       SERVER_PORT: 8083
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: bookstore_order
+      DB_PASSWORD: BookStore@Order2024
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -305,8 +306,8 @@ services:
     environment:
       SERVER_PORT: 8085
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: bookstore_promotion
+      DB_PASSWORD: BookStore@Promotion2024
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -347,8 +348,8 @@ services:
     environment:
       SERVER_PORT: 8086
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: bookstore_admin
+      DB_PASSWORD: BookStore@Admin2024
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -390,8 +391,8 @@ services:
     environment:
       SERVER_PORT: 8087
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: bookstore_message
+      DB_PASSWORD: BookStore@Message2024
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848
@@ -432,8 +433,8 @@ services:
     environment:
       SERVER_PORT: 8089
       DB_URL: jdbc:mysql://mysql:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-      DB_USERNAME: ${DB_USERNAME}
-      DB_PASSWORD: ${DB_PASSWORD}
+      DB_USERNAME: bookstore_agent
+      DB_PASSWORD: BookStore@Agent2024
       REDIS_HOST: redis
       REDIS_PORT: 6379
       NACOS_SERVER_ADDR: nacos:8848

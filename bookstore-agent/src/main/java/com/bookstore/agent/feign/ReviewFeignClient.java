@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 /**
  * 评价服务 Feign 客户端 — AI Agent 调用营销微服务的评价接口
  */
-@FeignClient(name = "bookstore-promotion")
+@FeignClient(name = "bookstore-promotion", fallbackFactory = ReviewFeignFallbackFactory.class)
 public interface ReviewFeignClient {
 
     /**

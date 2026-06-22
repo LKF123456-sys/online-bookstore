@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * 商品服务 Feign 客户端 — AI Agent 调用商品微服务的工具接口
  */
-@FeignClient(name = "bookstore-product")
+@FeignClient(name = "bookstore-product", fallbackFactory = ProductFeignFallbackFactory.class)
 public interface ProductFeignClient {
 
     /**

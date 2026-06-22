@@ -14,8 +14,8 @@ spring:
     name: bookstore-admin # 应用名称，注册到Nacos时使用此名称
   datasource: # 数据源配置（数据库连接信息）
     url: ${DB_URL:jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=UTF-8&characterSetResults=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true} # 数据库连接URL，支持环境变量DB_URL覆盖
-    username: ${DB_USERNAME:root} # 数据库用户名，默认root
-    password: ${DB_PASSWORD:root} # 数据库密码，默认root
+    username: ${DB_USERNAME:bookstore_admin} # 数据库用户名，默认为管理后台专属账号（V5权限隔离）
+    password: ${DB_PASSWORD:BookStore@Admin2024} # 数据库密码，默认为管理后台专属密码
     driver-class-name: com.mysql.cj.jdbc.Driver # MySQL驱动类名
     hikari: # HikariCP连接池配置（高性能数据库连接池）
       maximum-pool-size: 20 # 最大连接数
@@ -67,6 +67,15 @@ spring:
         file-extension: yml # 配置文件扩展名
         import-check:
           enabled: false # 禁用导入检查（避免配置不存在时报错）
+    openfeign: # OpenFeign客户端配置
+      circuitbreaker:
+        enabled: true # 启用熔断器，当Feign调用失败时触发熔断降级
+      client:
+        config:
+          default: # 默认的Feign客户端配置（对所有Feign客户端生效）
+            connect-timeout: 5000 # 连接超时时间（毫秒），建立TCP连接的超时限制
+            read-timeout: 10000 # 读取超时时间（毫秒），等待响应数据的超时限制
+            logger-level: BASIC # Feign日志级别：BASIC表示只记录请求方法、URL、响应状态码和执行时间
 
 # ======================== MyBatis-Plus 配置 ========================
 mybatis-plus:
@@ -116,3 +125,95 @@ springdoc:
       display-name: 微服务代理转发 # 分组显示名称
       paths-to-match: /api/** # 匹配的路径
   writer-with-order-by-keys: true # JSON输出时按键名排序（方便阅读）
+
+# ==================== Resilience4j 熔断器配置 ====================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        slow-call-duration-threshold: 8s
+        slow-call-rate-threshold: 80
+    instances:
+      user-service:
+        base-config: default
+        tags:
+          service: bookstore-user
+      product-service:
+        base-config: default
+        tags:
+          service: bookstore-product
+      order-service:
+        base-config: default
+        tags:
+          service: bookstore-order
+      promotion-service:
+        base-config: default
+        tags:
+          service: bookstore-promotion
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+    instances:
+      user-service:
+        base-config: default
+      product-service:
+        base-config: default
+      order-service:
+        base-config: default
+      promotion-service:
+        base-config: default
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+    instances:
+      user-service:
+        base-config: default
+        tags:
+          service: bookstore-user
+      product-service:
+        base-config: default
+        tags:
+          service: bookstore-product
+      order-service:
+        base-config: default
+        tags:
+          service: bookstore-order
+      promotion-service:
+        base-config: default
+        tags:
+          service: bookstore-promotion
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 0s
+    instances:
+      user-service:
+        base-config: default
+        tags:
+          service: bookstore-user
+      product-service:
+        base-config: default
+        tags:
+          service: bookstore-product
+      order-service:
+        base-config: default
+        tags:
+          service: bookstore-order
+      promotion-service:
+        base-config: default
+        tags:
+          service: bookstore-promotion

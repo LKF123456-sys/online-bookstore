@@ -25,7 +25,7 @@ import java.util.Map;
 // @FeignClient 声明这是一个 Feign 客户端接口
 //   - name = "bookstore-promotion"：指定要调用的微服务名称，对应 Nacos/注册中心中的服务名
 //   - 注意：此接口未设置 path 属性，因此每个方法的路径需要包含完整 URL
-@FeignClient(name = "bookstore-promotion")
+@FeignClient(name = "bookstore-promotion", fallbackFactory = PromotionFeignFallbackFactory.class)
 public interface PromotionFeignClient {
 
     // ===== 评价（Review）接口 =====

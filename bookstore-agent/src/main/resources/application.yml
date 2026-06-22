@@ -15,8 +15,8 @@ spring:
     name: bookstore-agent  # Nacos 服务名
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:root}
+    username: ${DB_USERNAME:bookstore_agent}  # AI 智能体服务专属账号（V5权限隔离）
+    password: ${DB_PASSWORD:BookStore@Agent2024}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10   # AI 服务数据库连接池较小（主要存聊天记录）
@@ -157,3 +157,81 @@ logging:
 springdoc:
   api-docs:
     enabled: true
+
+# ==================== Resilience4j 熔断器配置 ====================
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        slow-call-duration-threshold: 8s
+        slow-call-rate-threshold: 80
+    instances:
+      order-service:
+        base-config: default
+        tags:
+          service: bookstore-order
+      product-service:
+        base-config: default
+        tags:
+          service: bookstore-product
+      promotion-service:
+        base-config: default
+        tags:
+          service: bookstore-promotion
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 30s
+    instances:
+      order-service:
+        base-config: default
+      product-service:
+        base-config: default
+      promotion-service:
+        base-config: default
+  retry:
+    configs:
+      default:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+    instances:
+      order-service:
+        base-config: default
+        tags:
+          service: bookstore-order
+      product-service:
+        base-config: default
+        tags:
+          service: bookstore-product
+      promotion-service:
+        base-config: default
+        tags:
+          service: bookstore-promotion
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 0s
+    instances:
+      order-service:
+        base-config: default
+        tags:
+          service: bookstore-order
+      product-service:
+        base-config: default
+        tags:
+          service: bookstore-product
+      promotion-service:
+        base-config: default
+        tags:
+          service: bookstore-promotion

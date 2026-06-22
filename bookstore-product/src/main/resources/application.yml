@@ -16,8 +16,8 @@ spring:
   # ==================== 数据源配置（MySQL数据库） ====================
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}  # 数据库连接地址，使用环境变量DB_URL，未设置时默认连接本地MySQL的bookstore数据库
-    username: ${DB_USERNAME:root}  # 数据库用户名，使用环境变量DB_USERNAME，默认为root
-    password: ${DB_PASSWORD:root}  # 数据库密码，使用环境变量DB_PASSWORD，默认为root
+    username: ${DB_USERNAME:bookstore_product}  # 数据库用户名，默认为商品服务专属账号（V5权限隔离）
+    password: ${DB_PASSWORD:BookStore@Product2024}  # 数据库密码，默认为商品服务专属密码
     driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL驱动类名（MySQL 8.x版本的驱动）
     hikari:
       maximum-pool-size: 20  # HikariCP连接池最大连接数，同时最多保持20个数据库连接

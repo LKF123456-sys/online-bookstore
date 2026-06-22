@@ -30,7 +30,7 @@ import java.util.Map;
 // @FeignClient 声明这是一个 Feign 客户端接口
 //   - name = "bookstore-user"：指定要调用的微服务名称，对应 Nacos/注册中心中的服务名，Feign 会通过服务发现自动解析为实际 IP:Port
 //   - path = "/api"：指定所有方法 URL 的统一路径前缀，即每个方法的完整 URL = /api + 方法上声明的路径
-@FeignClient(name = "bookstore-user", path = "/api")
+@FeignClient(name = "bookstore-user", path = "/api", fallbackFactory = UserFeignFallbackFactory.class)
 public interface UserFeignClient {
 
     /**

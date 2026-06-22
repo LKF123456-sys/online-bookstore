@@ -20,8 +20,8 @@ spring:
   # ========== 数据库配置 ==========
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/bookstore?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}  # 数据库连接URL，${DB_URL:...}表示优先读取环境变量DB_URL，否则使用默认值；参数说明：UTF-8编码、上海时区、禁用SSL、允许公钥获取
-    username: ${DB_USERNAME:root}  # 数据库用户名，优先读取环境变量DB_USERNAME，默认为root
-    password: ${DB_PASSWORD:root}  # 数据库密码，优先读取环境变量DB_PASSWORD，默认为root
+    username: ${DB_USERNAME:bookstore_message}  # 数据库用户名，默认为消息服务专属账号（V5权限隔离）
+    password: ${DB_PASSWORD:BookStore@Message2024}  # 数据库密码，默认为消息服务专属密码
     driver-class-name: com.mysql.cj.jdbc.Driver  # MySQL驱动类名，使用MySQL 8.x的JDBC驱动
     hikari:  # HikariCP数据库连接池配置（高性能连接池）
       maximum-pool-size: 20  # 连接池最大连接数，最多同时保持20个数据库连接

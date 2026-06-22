@@ -20,7 +20,7 @@ import java.util.Map; // 导入Java集合框架的Map接口
  *   - name = "bookstore-order"：指定要调用的微服务名称，对应Nacos注册中心中的服务名
  *   - path = "/api"：指定所有方法URL的统一路径前缀
  */
-@FeignClient(name = "bookstore-order", path = "/api") // 声明Feign客户端，目标服务为bookstore-order，统一路径前缀为/api
+@FeignClient(name = "bookstore-order", path = "/api", fallbackFactory = OrderFeignFallbackFactory.class) // 声明Feign客户端，目标服务为bookstore-order，统一路径前缀为/api，熔断降级工厂为OrderFeignFallbackFactory
 public interface OrderFeignClient {
 
     // ======================== 订单管理接口 ========================

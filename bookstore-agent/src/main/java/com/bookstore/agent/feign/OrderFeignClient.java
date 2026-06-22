@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  *   Agent 通过此 Feign 客户端查询/操作用户订单，
  *   所有方法都传递 X-User-Id 以确保操作权限隔离。
  */
-@FeignClient(name = "bookstore-order")
+@FeignClient(name = "bookstore-order", fallbackFactory = OrderFeignFallbackFactory.class)
 public interface OrderFeignClient {
 
     /**
