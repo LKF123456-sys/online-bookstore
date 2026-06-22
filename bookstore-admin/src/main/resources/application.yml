@@ -1,6 +1,7 @@
 # ======================== 服务器配置 ========================
 server:
   port: 8086 # 管理后台服务的端口号，通过 http://localhost:8086 访问
+  max-http-request-header-size: 32KB  # 最大请求头大小，防止网关转发时头累积导致 431
   error:
     include-exception: true # 错误响应中包含异常类名（方便调试）
     include-message: always # 错误响应中包含错误消息

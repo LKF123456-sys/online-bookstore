@@ -9,6 +9,11 @@ server:
 
 # --- Spring框架配置 ---
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration
+
   # --- Redis 配置（用于 token 黑名单和接口限流） ---
   data:
     redis:
@@ -52,7 +57,7 @@ spring:
         # 登录接口 — 每 IP 每分钟最多 10 次请求
         # Swagger UI - API 文档（公开访问，无需认证）
         - id: bookstore-swagger-ui
-          uri: lb://bookstore-admin
+          uri: http://localhost:8086
           predicates:
             - Path=/swagger-ui.html, /swagger-ui/**, /v3/api-docs/**, /webjars/**
           filters:
@@ -60,21 +65,21 @@ spring:
 
 
         - id: bookstore-user-login-rate-limit
-          uri: lb://bookstore-user
+          uri: http://localhost:8081
           predicates:
             - Path=/api/auth/login
           filters:
             - StripPrefix=0
             - name: RequestRateLimiter
               args:
-                redis-rate-limiter.replenishRate: 10    # 每秒允许通过 10 个请求（≈ 每分钟 600，配合 burstCapacity 实现每分钟 10 次的窗口控制）
-                redis-rate-limiter.burstCapacity: 10     # 突发容量：令牌桶最大容量，限制每秒最多 10 个请求
+                redis-rate-limiter.replenishRate: 100   # 每秒允许通过 100 个请求（本地开发放宽限制）
+                redis-rate-limiter.burstCapacity: 100    # 突发容量：令牌桶最大容量
                 redis-rate-limiter.requestedTokens: 1    # 每个请求消耗 1 个令牌
                 key-resolver: "#{@ipKeyResolver}"        # 使用基于客户端 IP 的限流 key 解析器
 
         # 注册接口 — 每 IP 每分钟最多 5 次请求（注册更敏感，限流更严格）
         - id: bookstore-user-register-rate-limit
-          uri: lb://bookstore-user
+          uri: http://localhost:8081
           predicates:
             - Path=/api/auth/register
           filters:
@@ -88,7 +93,7 @@ spring:
 
         # 用户服务路由 - 处理用户认证（登录/注册）和个人信息相关请求
         - id: bookstore-user  # 路由的唯一标识
-          uri: lb://bookstore-user  # 目标服务地址，lb://表示通过负载均衡访问bookstore-user服务
+          uri: http://localhost:8081  # 本地开发直连
           predicates:  # 路由匹配条件（断言），满足条件的请求会被转发到此服务
             - Path=/api/auth/**, /api/user/**, /admin/user/**  # 匹配以/api/auth/、/api/user/、/admin/user/开头的所有路径
           filters:  # 路由过滤器，对请求进行处理
@@ -96,7 +101,7 @@ spring:
 
         # 商品服务路由 - 处理商品查询、搜索、SKU、分类等相关请求
         - id: bookstore-product  # 路由的唯一标识
-          uri: lb://bookstore-product  # 目标服务地址，通过负载均衡访问bookstore-product服务
+          uri: http://localhost:8082  # 本地开发直连，避免 lb:// 转发时请求头累积导致 431
           predicates:
             - Path=/api/product/**, /api/search/**, /api/sku/**, /api/category/**, /admin/product/**  # 匹配商品、搜索、SKU、分类相关的所有路径
           filters:
@@ -104,7 +109,7 @@ spring:
 
         # 订单服务路由 - 处理订单、购物车、支付、物流等相关请求
         - id: bookstore-order  # 路由的唯一标识
-          uri: lb://bookstore-order  # 目标服务地址，通过负载均衡访问bookstore-order服务
+          uri: http://localhost:8083  # 本地开发直连
           predicates:
             - Path=/api/order/**, /api/cart/**, /api/payment/**, /api/logistics/**, /admin/order/**  # 匹配订单、购物车、支付、物流相关的所有路径
           filters:
@@ -112,7 +117,7 @@ spring:
 
         # 消息服务路由 - 处理消息通知、WebSocket通信等相关请求
         - id: bookstore-message  # 路由的唯一标识
-          uri: lb://bookstore-message  # 目标服务地址，通过负载均衡访问bookstore-message服务
+          uri: http://localhost:8087  # 本地开发直连
           predicates:
             - Path=/api/message/**, /ws/**, /admin/message/**  # 匹配消息接口和WebSocket连接路径
           filters:
@@ -120,7 +125,7 @@ spring:
 
         # 营销服务路由 - 处理优惠券、评价、公告等相关请求
         - id: bookstore-promotion  # 路由的唯一标识
-          uri: lb://bookstore-promotion  # 目标服务地址，通过负载均衡访问bookstore-promotion服务
+          uri: http://localhost:8085  # 本地开发直连
           predicates:
             - Path=/api/coupon/**, /api/review/**, /api/announcement/**, /admin/coupon/**, /admin/review/**, /admin/announcement/**  # 匹配优惠券、评价、公告相关的所有路径
           filters:
@@ -128,7 +133,7 @@ spring:
 
         # AI 智能体服务路由 - 处理 AI 对话、SSE 流式通信等请求
         - id: bookstore-agent  # 路由的唯一标识
-          uri: lb://bookstore-agent  # 目标服务地址，通过负载均衡访问bookstore-agent服务
+          uri: http://localhost:8089  # 本地开发直连
           predicates:
             - Path=/api/agent/**  # 匹配AI智能体相关的所有路径
           filters:
@@ -136,7 +141,7 @@ spring:
 
         # 前端 REST API 路由 - Vue 前端使用的复数形式 API，由 bookstore-admin 统一提供
         - id: bookstore-vue-api
-          uri: lb://bookstore-admin
+          uri: http://localhost:8086
           predicates:
             - Path=/api/products/**, /api/orders/**, /api/reviews/**, /api/coupons/**
           filters:
@@ -144,15 +149,13 @@ spring:
 
         # 管理服务 - 静态资源路由 - 处理后台管理页面的图片、CSS、JS等静态文件
         - id: bookstore-admin-static  # 路由的唯一标识
-          uri: lb://bookstore-admin  # 目标服务地址，静态资源也由管理服务提供
+          uri: http://localhost:8086
           predicates:
-            - Path=/img/**, /css/**, /js/**, /favicon.svg, /static/**  # 匹配图片、样式表、JavaScript等静态资源路径
-          filters:
-            - StripPrefix=0  # 不去掉路径前缀
+            - Path=/img/**, /css/**, /js/**, /favicon.svg, /static/**
 
         # 管理服务路由 - 处理后台管理系统的分类管理、仪表盘、日志等功能
         - id: bookstore-admin  # 路由的唯一标识
-          uri: lb://bookstore-admin  # 目标服务地址，通过负载均衡访问bookstore-admin服务
+          uri: http://localhost:8086
           predicates:
             - Path=/admin/category/**, /admin/dashboard/**, /admin/log/**, /admin/**  # 匹配后台管理相关的所有路径
           filters:

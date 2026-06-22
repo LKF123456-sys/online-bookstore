@@ -115,8 +115,8 @@ const pageTitles: Record<string, string> = {
   announcements: '公告管理',
   messages: '消息管理',
   logs: '操作日志',
-  api-docs: 'API 文档',
-  gray-release: '灰度发布',
+  'api-docs': 'API 文档',
+  'gray-release': '灰度发布',
 }
 
 const currentPageTitle = computed(() => {

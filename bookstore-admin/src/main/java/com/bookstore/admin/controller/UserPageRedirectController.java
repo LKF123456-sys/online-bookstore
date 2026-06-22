@@ -5,6 +5,7 @@
  import org.springframework.web.bind.annotation.GetMapping;
 
  import jakarta.servlet.http.HttpServletRequest;
+ import jakarta.servlet.http.HttpServletResponse;
 
  /**
   * 用户端页面重定向控制器
@@ -20,8 +21,9 @@
   *
   * 通过 catch-all 模式捕获所有非 API 的 GET 请求，重定向到 user-frontend URL。
   */
- @Controller
- public class UserPageRedirectController {
+ @Deprecated
+// @Controller — 已禁用，改由 SpaRedirectFilter 处理 SPA 重定向
+public class UserPageRedirectController {
 
      @Value("${bookstore.user-frontend.url}")
      private String userFrontendUrl;
@@ -30,12 +32,20 @@
       * 捕获所有非 API 路径的 GET 请求，重定向到 Vue 用户前端
       */
      @GetMapping("/**")
-     public String redirectToVueUser(HttpServletRequest request) {
+     public void redirectToVueUser(HttpServletRequest request, HttpServletResponse response) throws Exception {
          String path = request.getRequestURI();
          // 排除 API 路径，避免干扰 REST 接口
          if (path.startsWith("/api/") || path.startsWith("/admin/")) {
-             return null;
+             response.sendError(HttpServletResponse.SC_NOT_FOUND);
+             return;
          }
-         return "redirect:" + userFrontendUrl + path;
+         // 排除静态资源路径，这些文件由 admin 服务自己提供（图片、CSS、JS 等）
+         if (path.startsWith("/img/") || path.startsWith("/css/") || path.startsWith("/js/") ||
+             path.startsWith("/static/") || path.equals("/favicon.svg") || path.equals("/favicon.ico") ||
+             path.startsWith("/webjars/") || path.startsWith("/v3/api-docs") || path.equals("/swagger-ui.html")) {
+             response.sendError(HttpServletResponse.SC_NOT_FOUND);
+             return;
+         }
+         response.sendRedirect(userFrontendUrl + path);
      }
  }

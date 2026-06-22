@@ -1,8 +1,8 @@
  package com.bookstore.gateway.filter;
 
  import com.bookstore.common.config.GrayReleaseConfig;
- import lombok.RequiredArgsConstructor;
- import lombok.extern.slf4j.Slf4j;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
  import org.springframework.cloud.gateway.filter.GatewayFilterChain;
  import org.springframework.cloud.gateway.filter.GlobalFilter;
  import org.springframework.core.Ordered;
@@ -28,21 +28,25 @@
   * - 通过管理后台 /admin/api/gray-release 查看和触发刷新
   */
  @Slf4j
- @Component
- @RequiredArgsConstructor
- public class GrayReleaseFilter implements GlobalFilter, Ordered {
+@Component
+public class GrayReleaseFilter implements GlobalFilter, Ordered {
 
-     private final GrayReleaseConfig grayReleaseConfig;
+    private final ObjectProvider<GrayReleaseConfig> grayReleaseConfigProvider;
+
+    public GrayReleaseFilter(ObjectProvider<GrayReleaseConfig> grayReleaseConfigProvider) {
+        this.grayReleaseConfigProvider = grayReleaseConfigProvider;
+    }
 
      private static final String HEADER_USER_ID = "X-User-Id";
      private static final String HEADER_GRAY_TAG = "X-Gray-Tag";
      private static final String HEADER_GRAY_VERSION = "X-Gray-Version";
 
      @Override
-     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-         if (!grayReleaseConfig.isEnabled()) {
-             return chain.filter(exchange);
-         }
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        GrayReleaseConfig config = grayReleaseConfigProvider.getIfAvailable();
+        if (config == null || !config.isEnabled()) {
+            return chain.filter(exchange);
+        }
 
          ServerHttpRequest request = exchange.getRequest();
          String path = request.getURI().getPath();
@@ -60,7 +64,7 @@
              return chain.filter(exchange);
          }
 
-         GrayReleaseConfig.GrayRule rule = grayReleaseConfig.matchRule(serviceName, userId, grayTag);
+         GrayReleaseConfig.GrayRule rule = config.matchRule(serviceName, userId, grayTag);
          if (rule != null) {
              log.debug("Gray routing: user={} service={} version={} rule={}", userId, serviceName, rule.getVersion(), rule.getName());
              ServerHttpRequest mutated = request.mutate()

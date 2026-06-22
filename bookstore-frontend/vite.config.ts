@@ -38,15 +38,15 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8086',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/img': {
-        target: 'http://localhost:8086',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/admin': {
-        target: 'http://localhost:8086',
+        target: 'http://localhost:8080',
         changeOrigin: true,
       },
     },

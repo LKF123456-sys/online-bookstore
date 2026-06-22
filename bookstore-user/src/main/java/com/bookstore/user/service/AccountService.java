@@ -47,7 +47,17 @@ public class AccountService {
     private final MeterRegistry meterRegistry;
 
     private Counter loginCounter;
-    private Counter registerCounter;  // Redis操作模板，用于缓存数据（如Token黑名单等）
+    private Counter registerCounter;
+
+    @PostConstruct
+    public void init() {
+        loginCounter = Counter.builder("user.login.count")
+                .description("Number of login attempts")
+                .register(meterRegistry);
+        registerCounter = Counter.builder("user.register.count")
+                .description("Number of registration attempts")
+                .register(meterRegistry);
+    }
 
     /** Redis 黑名单 key 前缀，与 Gateway AuthFilter 中的定义保持一致 */
     private static final String BLACKLIST_PREFIX = "jwt:blacklist:";
