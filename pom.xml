@@ -168,6 +168,18 @@
                 <version>${springdoc.version}</version>
             </dependency>
 
+            <!-- Testcontainers 集成测试 BOM
+                 子模块按需引入具体容器模块（mysql、redis、rabbitmq 等）
+                 version 由 spring-boot-starter-test 传递管理
+            -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>1.20.4</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- 内部公共模块依赖
                  bookstore-common 包含实体类、DTO、VO、工具类等
                  被所有业务模块依赖，避免重复定义

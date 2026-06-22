@@ -63,6 +63,11 @@ public class AdminLogService {
      * @param ip 操作者的IP地址
      */
     @Transactional // 声明此方法在事务中执行，确保数据一致性
+    /** @see #saveLog(String, String, String, String, String) 不记录IP时的便捷版本 */
+    public void addLog(String adminName, String operation, String target, String detail) {
+        this.saveLog(adminName, operation, target, detail, "");
+    }
+
     public void saveLog(String adminName, String operation, String target, String detail, String ip) {
         AdminLog log = new AdminLog(); // 创建日志实体对象
         log.setAdminName(adminName); // 设置管理员名称
