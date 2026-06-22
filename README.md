@@ -62,6 +62,8 @@ BookVerse 是一个功能完整的在线图书销售平台，采用 Spring Cloud
 | Axios | 1.7+ | HTTP 客户端（拦截器） |
 | Naive UI | latest | UI 组件库 |
 | ECharts | 5+ | 管理后台数据可视化 |
+| vue-i18n | 9.14+ | 国际化（zh-CN/en-US） |
+| Playwright | 1.50+ | E2E 端到端测试 |
 
 ### 微服务基础设施
 
@@ -431,6 +433,48 @@ Gateway 对认证类接口实施基于 Redis 令牌桶的 IP 级限流：
 
 ---
 
+## 前端工程化
+
+### 国际化
+
+前后端分离架构下，管理后台基于 vue-i18n 9.x 提供完整国际化支持：
+
+```typescript
+// 组件内使用
+const { t } = useI18n()
+{{ t('nav.dashboard') }}
+
+// 切换语言
+const { locale } = useI18n()
+locale.value = 'en-US'
+```
+
+| 语言 | 文件 | 覆盖范围 |
+|------|------|---------|
+| zh-CN | `src/i18n/locales/zh-CN.ts` | 导航、登录、仪表盘、通用操作 |
+| en-US | `src/i18n/locales/en-US.ts` | 导航、登录、仪表盘、通用操作 |
+
+### 环境变量配置
+
+前端服务地址通过 Vite 环境变量统一管理，不再硬编码端口：
+
+| 变量 | 用途 | 开发环境默认值 |
+|------|------|---------------|
+| `VITE_API_GATEWAY_URL` | API 网关地址 | `http://localhost:8080` |
+| `VITE_ADMIN_FRONTEND_URL` | 管理后台前端地址 | `http://localhost:5174` |
+| `VITE_USER_FRONTEND_URL` | 用户前端地址 | `http://localhost:5173` |
+
+配置位于各前端项目的 `.env.development`（开发环境）和 `.env.production`（生产环境）文件中。
+
+### API 文档
+
+管理后台侧边栏「API 文档」入口，通过 iframe 嵌入 Swagger UI。也可直接访问网关地址：
+
+```
+http://localhost:8080/swagger-ui.html
+```
+
+
 ## 快速开始
 
 ### 环境要求
@@ -541,6 +585,8 @@ npm run dev          # http://localhost:5173
 | http://localhost:5173 | 管理后台（bookstore-admin-frontend） |
 | http://localhost:8080 | API 网关入口 |
 | http://localhost:8848/nacos | Nacos 控制台 |
+| http://localhost:8080/swagger-ui.html | Swagger API 文档 |
+| http://localhost:5174/admin/api-docs | 管理后台 API 文档页 |
 
 ### 方式二：Docker Compose 一键部署
 
@@ -758,6 +804,84 @@ mvn test -pl bookstore-agent
 # 各模块 target/surefire-reports/ 目录下
 ```
 
+
+
+## 配置治理
+
+### 动态配置管理
+
+所有熔断器、限流器、重试阈值可通过 Nacos 配置中心动态调整，无需重启服务：
+
+```yaml
+# Nacos 配置示例（bookstore-admin.yml）
+bookstore:
+  dynamic:
+    circuit-breaker:
+      product-service:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10
+    feature-flags:
+      new-recommend-engine: false
+```
+
+### 运行时配置 API
+
+管理后台提供以下端点用于运行时配置管理：
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/admin/api/config` | GET | 查看当前运行态的全部动态配置 |
+| `/admin/api/config/refresh` | POST | 手动触发 Nacos 配置刷新 |
+| `/admin/api/config/status` | GET | 查看配置中心连接状态 |
+
+### 变更审计
+
+每次配置变更（包括 Nacos 自动推送和手动触发刷新）均通过 `AdminLogService` 记录审计日志，
+可在管理后台「操作日志」中追溯：谁、什么时间、修改了什么配置。
+
+### 覆盖率门禁
+
+JaCoCo 覆盖率检查集成在 Maven 构建流程中，`mvn verify` 时自动执行：
+
+| 指标 | 最低要求 | 排除项 |
+|------|---------|--------|
+| 指令覆盖率（INSTRUCTION） | >= 50% | Application、config、entity、dto、vo |
+| 分支覆盖率（BRANCH） | >= 30% | Application、config、entity、dto、vo |
+
+### 集成测试
+
+基于 Testcontainers 的集成测试框架，子模块可按需引入：
+
+```xml
+<dependency>
+    <groupId>org.testcontainers</groupId>
+    <artifactId>mysql</artifactId>
+    <scope>test</scope>
+</dependency>
+```
+
+### E2E 测试
+
+使用 Playwright 进行端到端测试（需先启动开发服务器）：
+
+```bash
+# 安装 Playwright（首次运行）
+cd bookstore-admin-frontend
+npm install
+npx playwright install chromium
+
+# 运行 E2E 测试
+npx playwright test
+
+```
+
+| 测试场景 | 覆盖内容 |
+|---------|---------|
+| 登录页冒烟 | 页面渲染、标题检查 |
+| 空表单校验 | 不填信息直接提交，验证仍在登录页 |
+| API 健康检查 | 网关 /actuator/health 端点可达性 |
+
 ### 测试技术栈
 
 - **JUnit 5**：测试框架，`@Test`、`@Nested`、`@DisplayName` 组织测试
@@ -902,3 +1026,11 @@ AI_PROVIDER=dashscope DASHSCOPE_API_KEY=sk-xxx
 - Spring Boot / Spring Cloud / Spring Cloud Alibaba
 - MyBatis-Plus / Nacos / Elasticsearch
 - Vue.js / Naive UI / ECharts / Pinia
+- **前后端完全分离**：Vue 3 + TypeScript 完全替代 JSP，AdminPageController 统一重定向到 Vue 前端（bookstore-admin-frontend），用户端由 bookstore-frontend 覆盖
+- **动态配置治理**：基于 Nacos 的熔断器/限流器/重试阈值动态刷新，运行态通过 API 查看和调整阈值，每次变更自动记录审计日志
+- **国际化(i18n)**：vue-i18n 9.x 集成，内置 zh-CN/en-US 双语言，组件内通过 Composition API 使用
+- **E2E 测试**：Playwright 测试框架，覆盖登录冒烟、表单校验、健康检查等核心场景
+- **集成测试基础设施**：Testcontainers 1.20.4 统一管理，子模块可按需引入 MySQL/Redis/RabbitMQ 容器测试
+- **代码覆盖率门禁**：JaCoCo 覆盖率检查（指令 ≥ 50%、分支 ≥ 30%），PR 构建时自动拦截覆盖率下降
+- **API 文档页面**：管理后台集成 Swagger UI，支持分组切换，通过网关统一路由访问
+
