@@ -39,6 +39,7 @@ public class AuthFilter implements GlobalFilter, Ordered { // 实现GlobalFilter
      */
     private static final List<String> WHITE_LIST = List.of( // 定义不可变的白名单路径列表，static final确保全局唯一且不可修改
             "/api/auth/login", "/api/auth/register", // 登录接口和注册接口，未登录用户必须可以访问
+            "/swagger-ui.html", "/swagger-ui/", "/v3/api-docs", "/webjars/", // Swagger UI 文档接口
             "/api/product/list", "/api/product/recommend", "/api/product/hot", // 商品列表、推荐商品、热门商品等公开浏览接口
             "/api/product/detail", "/api/category/list", "/api/announcement/active", // 商品详情、分类列表、活动公告等公开查询接口
             "/api/products", "/api/products/search", "/api/products/categories", "/api/products/recommend", "/api/products/hot", // 复数路径公开商品浏览接口

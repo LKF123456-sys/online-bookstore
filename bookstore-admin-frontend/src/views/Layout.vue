@@ -69,6 +69,7 @@ import {
   ChatbubblesOutline,
   MegaphoneOutline,
   MailOutline,
+  CodeSlashOutline,
   DocumentTextOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '@/stores/auth'
@@ -93,6 +94,7 @@ const menuOptions: MenuOption[] = [
   { label: '公告管理', key: 'announcements', icon: renderIcon(MegaphoneOutline) },
   { label: '消息管理', key: 'messages', icon: renderIcon(MailOutline) },
   { label: '操作日志', key: 'logs', icon: renderIcon(DocumentTextOutline) },
+  { label: 'API 文档', key: 'api-docs', icon: renderIcon(CodeSlashOutline) },
 ]
 
 const activeKey = computed(() => {
@@ -111,6 +113,7 @@ const pageTitles: Record<string, string> = {
   announcements: '公告管理',
   messages: '消息管理',
   logs: '操作日志',
+  api-docs: 'API 文档',
 }
 
 const currentPageTitle = computed(() => {

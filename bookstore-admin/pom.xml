@@ -74,22 +74,6 @@
         </dependency>
 
         <!-- ======================== JSP视图支持 ======================== -->
-        <dependency> <!-- 嵌入式Tomcat的JSP编译器，使Spring Boot支持JSP页面 -->
-            <groupId>org.apache.tomcat.embed</groupId>
-            <artifactId>tomcat-embed-jasper</artifactId>
-        </dependency>
-
-        <dependency> <!-- JSTL（JSP标准标签库）API，提供<c:forEach>等标签支持 -->
-            <groupId>jakarta.servlet.jsp.jstl</groupId>
-            <artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
-        </dependency>
-
-        <dependency> <!-- JSTL实现库，JSTL API的具体实现 -->
-            <groupId>org.glassfish.web</groupId>
-            <artifactId>jakarta.servlet.jsp.jstl</artifactId>
-            <version>3.0.1</version>
-        </dependency>
-
         <!-- ======================== 监控和文档 ======================== -->
         <dependency> <!-- Spring Boot Actuator：提供健康检查、指标监控等生产级功能 -->
             <groupId>org.springframework.boot</groupId>

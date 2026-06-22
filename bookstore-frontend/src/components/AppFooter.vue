@@ -22,6 +22,7 @@
         <router-link to="/products">浏览图书</router-link>
         <router-link to="/coupons">优惠券</router-link>
         <router-link to="/cart">购物车</router-link>
+        <a :href="apiDocsUrl" target="_blank" class="footer-link">API 文档</a>
       </div>
       <div class="footer-section">
         <h4>我的账户</h4>
@@ -42,7 +43,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { BookOutline, MailOutline, CallOutline, LogoGithub, LogoTwitter } from '@vicons/ionicons5'
+
+const apiDocsUrl = computed(() => {
+  const gatewayUrl = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080'
+  return `${gatewayUrl}/swagger-ui.html`
+})
 </script>
 
 <style scoped>
