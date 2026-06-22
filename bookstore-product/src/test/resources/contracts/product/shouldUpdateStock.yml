@@ -1,0 +1,19 @@
+description: |
+  PUT /api/product/{id}/stock — 更新商品库存（扣减或恢复）
+  Consumer: bookstore-order → Provider: bookstore-product
+name: shouldUpdateStock
+label: "product_stock"
+request:
+  method: PUT
+  urlPath: /api/product/101/stock
+  queryParameters:
+    quantity: -1
+  headers:
+    Accept: application/json
+response:
+  status: 200
+  headers:
+    Content-Type: application/json;charset=UTF-8
+  body:
+    code: 200
+    message: "success"

@@ -1,0 +1,30 @@
+description: |
+  GET /api/product/batch — 批量获取商品信息
+  Consumer: bookstore-order → Provider: bookstore-product
+name: shouldBatchGetProducts
+label: "product_batch"
+request:
+  method: GET
+  urlPath: /api/product/batch
+  queryParameters:
+    ids: "101,102,103"
+  headers:
+    Accept: application/json
+response:
+  status: 200
+  headers:
+    Content-Type: application/json;charset=UTF-8
+  body:
+    code: 200
+    message: "success"
+    data:
+      - productid: "101"
+        name: "测试图书1"
+        author: "测试作者1"
+        price: 39.9
+        stock: 100
+      - productid: "102"
+        name: "测试图书2"
+        author: "测试作者2"
+        price: 49.9
+        stock: 80

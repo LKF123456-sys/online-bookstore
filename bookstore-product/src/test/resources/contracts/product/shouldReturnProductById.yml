@@ -1,0 +1,33 @@
+description: |
+  GET /api/product/{id} — 根据ID获取商品详情
+  Consumer: bookstore-order → Provider: bookstore-product
+  This contract verifies the getProductById Feign client contract.
+name: shouldReturnProductById
+label: "product_by_id"
+request:
+  method: GET
+  urlPath: /api/product/101
+  headers:
+    Accept: application/json
+response:
+  status: 200
+  headers:
+    Content-Type: application/json;charset=UTF-8
+  body:
+    code: 200
+    message: "success"
+    data:
+      productid: "101"
+      name: "测试图书"
+      author: "测试作者"
+      price: 39.9
+      stock: 100
+      sales: 50
+      category: "文学"
+      status: 1
+  matchers:
+    body:
+      - path: "$.code"
+        type: by_regex: "200"
+      - path: "$.data.productid"
+        type: by_regex: "101"

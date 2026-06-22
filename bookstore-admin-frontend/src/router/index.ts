@@ -69,6 +69,11 @@ const routes: RouteRecordRaw[] = [
         name: 'ApiDocs',
         component: () => import('@/views/ApiDocs.vue'),
       },
+      {
+        path: 'gray-release',
+        name: 'GrayRelease',
+        component: () => import('@/views/GrayReleaseManagement.vue'),
+      },
     ],
   },
   {

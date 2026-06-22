@@ -78,7 +78,8 @@
         <findbugs-jsr305.version>3.0.2</findbugs-jsr305.version> <!-- JSR-305 注解库版本（配合SpotBugs使用） -->
         <jacoco.version>0.8.12</jacoco.version>                  <!-- JaCoCo 版本（代码覆盖率统计） -->
         <skywalking-toolkit.version>9.1.0</skywalking-toolkit.version>  <!-- SkyWalking Toolkit 版本（日志注入和链路追踪注解） -->
-        <spring-ai.version>1.0.9</spring-ai.version>               <!-- Spring AI 版本（LLM 集成框架，兼容 Spring Boot 3.2.x） -->
+        <spring-ai.version>1.0.9</spring-ai.version>
+        <spring-cloud-contract.version>4.1.4</spring-cloud-contract.version>               <!-- Spring AI 版本（LLM 集成框架，兼容 Spring Boot 3.2.x） -->
     </properties>
 
     <!-- ========== 依赖版本管理（dependencyManagement）==========
@@ -272,6 +273,18 @@
                     <systemPropertyVariables>
                         <net.bytebuddy.experimental>true</net.bytebuddy.experimental>
                     </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <!-- Spring Cloud Contract Verifier
+                 根据 contracts/ 目录下的契约定义自动生成并提供方验证测试
+            -->
+            <plugin>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-contract-maven-plugin</artifactId>
+                <version>${spring-cloud-contract.version}</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <contractsDirectory>${project.basedir}/src/test/resources/contracts</contractsDirectory>
                 </configuration>
             </plugin>
             <!-- SpotBugs 静态分析插件
