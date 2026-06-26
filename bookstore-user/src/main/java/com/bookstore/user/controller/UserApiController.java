@@ -35,7 +35,7 @@ public class UserApiController {
      * 前端传入用户ID，返回该用户的详细信息（不含密码等敏感字段）。
      *
      * @param id 用户ID，从URL路径中提取（如 /api/user/123 中的 123）
-     * @return 统一结果对象，成功时包含用户视图对象（UserVO）
+     * @return 统一结果对象，成功时包含用户视图对象（UserVOX
      */
     @GetMapping("/{id}")  // GET请求映射，处理 /api/user/{id} 路径的查询请求，{id} 是路径变量
     public Result<UserVO> getUserById(@PathVariable String id) {  // @PathVariable 从URL路径中提取id参数值

@@ -40,7 +40,7 @@ public class AuthController {
      * @param dto 登录信息对象（DTO），包含用户名（username）和密码（password），由前端JSON自动转换而来
      * @return 统一结果对象，成功时包含token和用户信息（Map），失败时包含错误提示信息
      */
-    @PostMapping("/login")
+    @PostMapping( "/login")
     public Result<Map<String, Object>> login(@Valid @RequestBody LoginDTO dto, HttpServletResponse response) {
         Map<String, Object> result = accountService.login(dto);
         String token = (String) result.get("token");
